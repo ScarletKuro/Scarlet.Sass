@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <!-- Only the local feed. If the tool package needed anything from nuget.org this test fails, which is
+         itself part of the claim the scenario makes. -->
+    <clear />
+    <add key="LocalPackages" value="{{WORKSPACE_PATH}}/packages" />
+  </packageSources>
+</configuration>

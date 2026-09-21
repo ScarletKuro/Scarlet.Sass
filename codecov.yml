@@ -1,0 +1,14 @@
+component_management:
+  individual_components:
+    - component_id: core
+      name: Core
+      paths:
+        - src/Scarlet.Sass.Core/**
+    - component_id: msbuild-task
+      name: MSBuild Task
+      paths:
+        - src/Scarlet.Sass.MSBuild/**
+    - component_id: cli
+      name: CLI
+      paths:
+        - src/Scarlet.Sass.Cli/**

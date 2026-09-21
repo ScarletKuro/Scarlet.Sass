@@ -1,0 +1,9 @@
+@use "tokens";
+
+.{{CLASS_NAME}} {
+  color: tokens.$brand;
+
+  &:hover {
+    color: black;
+  }
+}

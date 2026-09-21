@@ -1,0 +1,24 @@
+<Project>
+  <!--
+    Sass runtime pack for macOS ARM64.
+
+    SassRuntimePack is the contract Scarlet.Sass.MSBuild reads. It is an item rather than a
+    SassRuntime_<rid> property so that a new runtime identifier - a musl build, a non-baseline build,
+    or a locally built Sass - only needs a package that contributes one of these items; the task,
+    its parameters and its targets stay untouched.
+
+    Metadata:
+      Rid          - runtime identifier this pack serves. Required.
+      RuntimesPath - directory containing <rid>/native/dart-sass/<executable>. Required.
+      Variant      - Sass build variant, for diagnostics only.
+      Priority     - higher wins when several packs serve the same Rid. Defaults to 0.
+  -->
+  <ItemGroup>
+    <SassRuntimePack Include="Scarlet.Sass.Runtime.darwin-arm64">
+      <Rid>osx-arm64</Rid>
+      <RuntimesPath>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..', 'runtimes'))</RuntimesPath>
+      <Variant>default</Variant>
+      <Priority>0</Priority>
+    </SassRuntimePack>
+  </ItemGroup>
+</Project>

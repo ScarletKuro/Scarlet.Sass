@@ -1,0 +1,9 @@
+@use "tokens";
+
+.cli-tool {
+  color: tokens.$brand;
+
+  &:hover {
+    color: black;
+  }
+}

@@ -1,0 +1,113 @@
+name: Sass Version Bump
+
+on:
+  schedule:
+    # 06:00 UTC on the 1st of every month.
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: Sass-version-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Check for a new Sass release
+    runs-on: uSasstu-latest
+
+    steps:
+      - name: Require master
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/master" ]; then
+            echo "This workflow must run from master so the pushed bump and deploy ref match."
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: master
+
+      - name: Get current SassVersion
+        id: current
+        run: |
+          CURRENT=$(sed -n 's/.*<SassVersion>\([^<]*\)<\/SassVersion>.*/\1/p' Directory.Build.props)
+          if ! [[ "$CURRENT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Directory.Build.props contains an invalid SassVersion: $CURRENT"
+            exit 1
+          fi
+
+          echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "Current SassVersion: $CURRENT"
+
+      - name: Get latest Sass release
+        id: latest
+        run: |
+          RELEASE=$(curl -fsSL https://api.github.com/repos/oven-sh/Sass/releases/latest)
+          TAG=$(jq -r '.tag_name' <<< "$RELEASE")
+          DRAFT=$(jq -r '.draft' <<< "$RELEASE")
+          PRERELEASE=$(jq -r '.prerelease' <<< "$RELEASE")
+
+          if [ "$DRAFT" != "false" ] || [ "$PRERELEASE" != "false" ]; then
+            echo "Refusing to publish a draft or prerelease Sass release: $TAG"
+            exit 1
+          fi
+
+          if ! [[ "$TAG" =~ ^Sass-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Latest Sass release tag is not a stable SemVer tag: $TAG"
+            exit 1
+          fi
+
+          LATEST="${TAG#Sass-v}"
+          echo "version=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "Latest Sass release: $LATEST"
+
+      - name: Bump SassVersion and push
+        id: bump
+        if: steps.current.outputs.version != steps.latest.outputs.version
+        run: |
+          CURRENT="${{ steps.current.outputs.version }}"
+          LATEST="${{ steps.latest.outputs.version }}"
+
+          NEWEST=$(printf '%s\n%s\n' "$CURRENT" "$LATEST" | sort -V | tail -n 1)
+          if [ "$NEWEST" != "$LATEST" ]; then
+            echo "Latest Sass release ($LATEST) is not newer than current SassVersion ($CURRENT); nothing to publish."
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          sed -i "s/<SassVersion>$CURRENT<\/SassVersion>/<SassVersion>$LATEST<\/SassVersion>/" Directory.Build.props
+          # Reset alongside SassVersion - see the SassCliRevision comment in Directory.Build.props.
+          sed -i "s/<SassCliRevision>[0-9]*<\/SassCliRevision>/<SassCliRevision>0<\/SassCliRevision>/" Directory.Build.props
+
+          if ! grep -q "<SassVersion>$LATEST</SassVersion>" Directory.Build.props; then
+            echo "Failed to update SassVersion to $LATEST."
+            exit 1
+          fi
+
+          if ! grep -q "<SassCliRevision>0</SassCliRevision>" Directory.Build.props; then
+            echo "Failed to reset SassCliRevision to 0."
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Directory.Build.props
+          git commit -m "Bump Sass to $LATEST"
+          git push origin HEAD:master
+
+          echo "bumped=true" >> "$GITHUB_OUTPUT"
+
+      # deploy.yml runs the full test matrix (including musl) before its deploy job, and only
+      # publishes if every test job succeeds - so a bad Sass release fails loudly here without
+      # anything reaching NuGet.
+      - name: Trigger runtime-and-cli deploy
+        if: steps.bump.outputs.bumped == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy.yml --ref master -f release_target=runtime-and-cli

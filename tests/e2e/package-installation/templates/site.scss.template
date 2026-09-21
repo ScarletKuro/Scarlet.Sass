@@ -1,0 +1,9 @@
+@use "variables";
+
+.package-installation {
+  color: variables.$brand;
+
+  &:hover {
+    color: black;
+  }
+}

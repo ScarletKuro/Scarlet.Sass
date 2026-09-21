@@ -1,0 +1,58 @@
+<Project>
+  <UsingTask TaskName="Scarlet.Sass.MSBuild.SassCompileTask"
+             AssemblyFile="$(MSBuildThisFileDirectory)../tools/netstandard2.0/Scarlet.Sass.MSBuild.dll" />
+
+  <Target Name="_SassResolveStampDirectory">
+    <PropertyGroup>
+      <_SassStampDirectory Condition="'$(SassStampDirectory)' != ''">$(SassStampDirectory)</_SassStampDirectory>
+      <_SassStampDirectory Condition="'$(_SassStampDirectory)' == '' AND '$(IntermediateOutputPath)' != ''">$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'Scarlet.Sass'))))</_SassStampDirectory>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="RunSassBeforeStaticWebAssets"
+          BeforeTargets="DispatchToInnerBuilds;ResolveProjectStaticWebAssets;PreBuildEvent"
+          DependsOnTargets="_SassResolveStampDirectory"
+          Condition="'$(SassEnabled)' == 'true' AND '@(SassBeforeStaticWebAssets)' != '' AND '$(DesignTimeBuild)' != 'true' AND '$(NoBuild)' != 'true' AND ('$(TargetFrameworks)' == '' OR '$(TargetFramework)' == '')">
+    <SassCompileTask Compilations="@(SassBeforeStaticWebAssets)"
+                     ProjectDirectory="$(MSBuildProjectDirectory)"
+                     Configuration="$(Configuration)"
+                     OutputStyle="$(SassOutputStyle)"
+                     SourceMap="$(SassSourceMap)"
+                     EmbedSources="$(SassEmbedSources)"
+                     QuietDeps="$(SassQuietDeps)"
+                     LoadPaths="$(SassLoadPaths)"
+                     PkgImporter="$(SassPkgImporter)"
+                     SilenceDeprecations="$(SassSilenceDeprecations)"
+                     FatalDeprecations="$(SassFatalDeprecations)"
+                     AdditionalArguments="$(SassAdditionalArguments)"
+                     StampDirectory="$(_SassStampDirectory)"
+                     RuntimeDirectory="$(SassRuntimeDirectory)"
+                     SassRuntimeDownload="$(SassRuntimeDownload)"
+                     SassVersionDownload="$(SassVersionDownload)"
+                     DownloadMutexTimeoutSeconds="$(SassDownloadMutexTimeoutSeconds)"
+                     RuntimePacks="@(SassRuntimePack)">
+      <Output TaskParameter="GeneratedFiles" ItemName="_SassGeneratedFiles" />
+      <Output TaskParameter="RemovedFiles" ItemName="_SassRemovedFiles" />
+    </SassCompileTask>
+
+    <ItemGroup>
+      <Content Remove="@(_SassRemovedFiles)" />
+      <None Remove="@(_SassRemovedFiles)" />
+      <_SassGeneratedContent Include="$([System.IO.Path]::GetRelativePath('$(MSBuildProjectDirectory)', '%(_SassGeneratedFiles.Identity)'))" />
+      <_SassNewContent Include="@(_SassGeneratedContent)" Exclude="@(Content)" />
+      <Content Include="@(_SassNewContent)" CopyToPublishDirectory="PreserveNewest" />
+      <FileWrites Include="@(_SassGeneratedFiles)" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="SassClean"
+          BeforeTargets="CoreClean"
+          DependsOnTargets="_SassResolveStampDirectory"
+          Condition="'$(_SassStampDirectory)' != '' AND Exists('$(_SassStampDirectory)\Sass.generated.txt')">
+    <ReadLinesFromFile File="$(_SassStampDirectory)\Sass.generated.txt">
+      <Output TaskParameter="Lines" ItemName="_SassFilesToClean" />
+    </ReadLinesFromFile>
+    <Delete Files="@(_SassFilesToClean)" />
+    <Delete Files="$(_SassStampDirectory)\Sass.generated.txt;$(_SassStampDirectory)\Sass.settings.stamp" />
+  </Target>
+</Project>

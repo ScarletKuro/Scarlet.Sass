@@ -1,0 +1,212 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Scarlet.Sass.Cli</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- Required by LibraryImport in PosixInterop: the source generator emits unsafe marshalling stubs
+         (SYSLIB1062). The only unsafe code in this project is that generated interop. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Tool packaging. ToolCommandName starts with "dotnet-" so the SDK lets callers drop the prefix:
+         `dotnet sass` works for local tools as well as global ones. -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dotnet-sass</ToolCommandName>
+
+    <!-- One `dotnet pack` produces a package per RID plus a top-level pointer package. 'any' adds a
+         framework-dependent, platform-agnostic fallback that downloads Sass on first use instead of
+         embedding it. It covers hosts these eight RIDs miss but that Sass still supports - it is not a
+         universal fallback: any architecture other than x64/arm64 is rejected with an explanatory error
+         by SassRuntimeResolver.GetPlatform, because Sass publishes no build we could download for it. -->
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64;any</RuntimeIdentifiers>
+    <ToolPackageRuntimeIdentifiers>$(RuntimeIdentifiers)</ToolPackageRuntimeIdentifiers>
+
+    <!-- Framework-dependent, platform-specific. Since .NET 8 a RuntimeIdentifier no longer implies
+         SelfContained, but PublishTrimmed / PublishSingleFile / PublishAot each still flip it on - and
+         self-contained would add ~70 MB of .NET runtime on top of a 61-94 MB Sass in every RID package.
+         A dotnet tool already requires a .NET install to be invoked, so it would buy nothing. -->
+    <SelfContained>false</SelfContained>
+    <PublishSelfContained>false</PublishSelfContained>
+
+    <!-- Package identity. The version tracks the embedded Sass, exactly like Scarlet.Sass.Runtime.*, so the
+         version in .config/dotnet-tools.json names the Sass this repository builds with.
+         $(SassCliRevision) is the escape hatch for a CLI-only fix; see Directory.Build.props. NuGet drops a
+         trailing zero, so the usual case publishes as plain 1.4.2. -->
+    <PackageId>Scarlet.Sass.Cli</PackageId>
+    <Version>$(SassVersion).$(SassCliRevision)</Version>
+    <Authors>ScarletKuro</Authors>
+    <RepositoryUrl>https://github.com/ScarletKuro/Scarlet.Sass</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <Deterministic>true</Deterministic>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <DebugType>portable</DebugType>
+
+    <!-- Deliberate deviation from the other packable projects: a DotnetTool package has no lib/ or ref/,
+         so a .snupkg would carry PDBs nuget.org cannot map to any assembly. The PDBs already ship inside
+         tools/<tfm>/<rid>/ through the publish glob, so nothing is lost. -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!--
+    Discovery metadata: only the pointer package (RuntimeIdentifier empty) should compete on nuget.org
+    search. The eight RID packages and 'any' are restore-time plumbing - never installed directly - but the
+    .NET SDK's tool-packaging target otherwise stamps every one of them with the pointer's own Title,
+    Description and PackageTags, verbatim. Since those RID packages are also transitively installed on
+    every restore of the pointer, they rack up the same "recent installs" signal NuGet's search ranking
+    leans on, and end up outranking the pointer for the exact keywords it needs to be found by. Same
+    RuntimeIdentifier condition already used for the README swap below.
+  -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == ''">
+    <Title>Scarlet.Sass.Cli - Dart Sass as a .NET Tool</Title>
+    <Description>Run Dart Sass as a .NET tool: `dotnet sass ...`. Platform-specific packages embed the matching Dart Sass runtime, so `dotnet tool restore` pins Sass through .config/dotnet-tools.json. Every argument is forwarded to Sass verbatim.</Description>
+    <PackageTags>sass;scss;dart-sass;dotnet-tool;global-tool;cli;frontend</PackageTags>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <Title>Scarlet.Sass.Cli runtime package ($(RuntimeIdentifier))</Title>
+    <Description>Internal runtime asset for Scarlet.Sass.Cli, resolved automatically via NuGet RID fallback. Do not install this package directly - install Scarlet.Sass.Cli instead.</Description>
+  </PropertyGroup>
+
+  <!--
+    RID -> runtime package mapping. Deliberately mirrors SassRuntimeResolver.PlatformMap; SassRidMapTests
+    asserts the two stay in step.
+
+    RuntimeIdentifier arrives as a global property from the SDK tool-packaging target, so plain
+    evaluation-time conditions are enough.
+  -->
+  <PropertyGroup>
+    <SassRuntimeProject Condition="'$(RuntimeIdentifier)' == 'win-x64'">windows-x64</SassRuntimeProject>
+    <SassRuntimeProject Condition="'$(RuntimeIdentifier)' == 'win-arm64'">windows-arm64</SassRuntimeProject>
+    <SassRuntimeProject Condition="'$(RuntimeIdentifier)' == 'linux-x64'">linux-x64</SassRuntimeProject>
+    <SassRuntimeProject Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">linux-arm64</SassRuntimeProject>
+    <SassRuntimeProject Condition="'$(RuntimeIdentifier)' == 'linux-musl-x64'">linux-x64-musl</SassRuntimeProject>
+    <SassRuntimeProject Condition="'$(RuntimeIdentifier)' == 'linux-musl-arm64'">linux-arm64-musl</SassRuntimeProject>
+    <SassRuntimeProject Condition="'$(RuntimeIdentifier)' == 'osx-x64'">darwin-x64</SassRuntimeProject>
+    <SassRuntimeProject Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">darwin-arm64</SassRuntimeProject>
+
+    <SassExecutableName Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">sass.bat</SassExecutableName>
+    <SassExecutableName Condition="'$(SassRuntimeProject)' != '' and '$(SassExecutableName)' == ''">sass</SassExecutableName>
+
+    <!-- Empty for the pointer build, for the 'any' build, and for a plain RID-less `dotnet build` during
+         development. That single condition is all that keeps Sass out of the 'any' package. -->
+    <EmbedSassBinary>false</EmbedSassBinary>
+    <EmbedSassBinary Condition="'$(SassRuntimeProject)' != ''">true</EmbedSassBinary>
+
+    <SassRuntimeProjectDir Condition="'$(EmbedSassBinary)' == 'true'">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '..', 'Scarlet.Sass.Runtime.$(SassRuntimeProject)'))</SassRuntimeProjectDir>
+    <SassBinaryPath Condition="'$(EmbedSassBinary)' == 'true'">$(SassRuntimeProjectDir)dart-sass\$(SassExecutableName)</SassBinaryPath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(EmbedSassBinary)' == 'true'">
+    <!--
+      The CLI embeds the very same binary the matching runtime package ships, rather than downloading its
+      own copy: identical bytes by construction, and it halves the download volume of a cold build.
+
+      ReferenceOutputAssembly=false because only the binary is wanted, not an assembly reference.
+
+      UndefineProperties is required, not cosmetic: this project builds once per RID, and those global
+      properties would otherwise flow into a netstandard2.0 project that declares no RIDs and cannot
+      restore for one. Target-framework negotiation is deliberately left on so the reference resolves to
+      netstandard2.0 rather than inheriting net10.0 from here.
+    -->
+    <ProjectReference Include="$(SassRuntimeProjectDir)Scarlet.Sass.Runtime.$(SassRuntimeProject).csproj"
+                      ReferenceOutputAssembly="false"
+                      UndefineProperties="RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSelfContained" />
+  </ItemGroup>
+
+  <!--
+    Put the binary next to the app in bin/ and, crucially, in publish/ - the SDK's tool packaging globs the
+    publish directory into tools/<tfm>/<rid>/, which is what puts it beside the executable at runtime.
+    Injected before AssignTargetPaths because that is when None items get their output paths assigned.
+  -->
+  <Target Name="AddSassBinaryToOutputs"
+          Condition="'$(EmbedSassBinary)' == 'true'"
+          BeforeTargets="AssignTargetPaths">
+
+    <Error Condition="!Exists('$(SassBinaryPath)')"
+           Text="Scarlet.Sass.Cli: no Sass binary for $(RuntimeIdentifier) at '$(SassBinaryPath)'. It is produced by Scarlet.Sass.Runtime.$(SassRuntimeProject), whose download target tolerates failure - check network access to github.com and that pwsh (Windows) or bash+curl+unzip (Unix) are available, then rebuild. Packing a RID package without its Sass binary would ship a broken tool." />
+
+    <ItemGroup>
+      <None Include="$(SassRuntimeProjectDir)dart-sass\**\*">
+        <Link>dart-sass\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <Pack>false</Pack>
+        <Visible>false</Visible>
+      </None>
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Bake the pinned Sass version into the assembly. The 'any' package needs it to know what to download, and
+    diagnostics report it. Generated rather than read by reflection so it is a compile-time constant.
+  -->
+  <!--
+    The file path is computed inside the target on purpose. $(IntermediateOutputPath) is not yet defined
+    while the project body is being evaluated, so setting it in a top-level PropertyGroup silently produced
+    a project-relative path - one file shared by all seven inner builds, where the first writer won and the
+    rest were skipped as up to date. That is how a win-x64 package ended up reporting itself as 'any'.
+  -->
+  <Target Name="GenerateSassBuildInfo" BeforeTargets="BeforeCompile;CoreCompile">
+    <PropertyGroup>
+      <SassBuildInfoFile>$(IntermediateOutputPath)SassBuildInfo.g.cs</SassBuildInfoFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <_SassBuildInfoLine Include="// &lt;auto-generated /&gt;" />
+      <_SassBuildInfoLine Include="namespace Scarlet.Sass.Cli%3B" />
+      <_SassBuildInfoLine Include="/// &lt;summary&gt;Build-time facts baked in from MSBuild.&lt;/summary&gt;" />
+      <_SassBuildInfoLine Include="internal static class SassBuildInfo" />
+      <_SassBuildInfoLine Include="{" />
+      <_SassBuildInfoLine Include="    /// &lt;summary&gt;The Sass version this package was built against.&lt;/summary&gt;" />
+      <_SassBuildInfoLine Include="    public const string PinnedSassVersion = &quot;$(SassVersion)&quot;%3B" />
+      <_SassBuildInfoLine Include="    /// &lt;summary&gt;The runtime identifier this package was built for, empty for the portable package.&lt;/summary&gt;" />
+      <_SassBuildInfoLine Include="    public const string PackagedRuntimeIdentifier = &quot;$(RuntimeIdentifier)&quot;%3B" />
+      <_SassBuildInfoLine Include="}" />
+    </ItemGroup>
+
+    <WriteLinesToFile File="$(SassBuildInfoFile)" Lines="@(_SassBuildInfoLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+
+    <ItemGroup>
+      <Compile Include="$(SassBuildInfoFile)" />
+      <FileWrites Include="$(SassBuildInfoFile)" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Two READMEs: the pointer package (RuntimeIdentifier empty) ships the full docs; every RID-specific
+    sub-package - including 'any' - ships a short redirect to Scarlet.Sass.Cli instead, since NuGet.org
+    renders whichever one is packed as that package's own page and a first-time visitor has no way to know
+    these RID packages are restore-time details, not something to install directly.
+  -->
+  <ItemGroup>
+    <None Update="README.md" Condition="'$(RuntimeIdentifier)' == ''" Pack="true" PackagePath="\" />
+    <None Update="README.rid.md" Condition="'$(RuntimeIdentifier)' != ''" Pack="true" PackagePath="README.md" />
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Abstractions" Version="22.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Scarlet.Sass.Core\Scarlet.Sass.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Scarlet.Sass.Cli.Tests" />
+  </ItemGroup>
+
+</Project>

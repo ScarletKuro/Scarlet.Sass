@@ -1,0 +1,430 @@
+using System;
+using System.IO;
+using System.IO.Abstractions;
+using System.IO.Compression;
+using System.Net.Http;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Scarlet.Sass.Core.Providers;
+
+namespace Scarlet.Sass.Core;
+
+/// <summary>
+/// Handles downloading Dart Sass runtimes from GitHub releases.
+/// </summary>
+public sealed class SassDownloader
+{
+    private const string GithubReleasesUrl = "https://github.com/sass/dart-sass/releases";
+    private const string ArchiveRootDirectory = "dart-sass";
+
+    private readonly Platform _platform;
+    private readonly HttpClient _httpClient;
+    private readonly IFileSystem _fileSystem;
+    private readonly IChmodProvider _chmodProvider;
+    private readonly IZipArchiveProvider _zipProvider;
+    private readonly ISassLogger _log;
+    private readonly ILatestVersionResolver _latestVersionResolver;
+
+    public SassDownloader(
+        HttpClient httpClient,
+        ILatestVersionResolver latestVersionResolver,
+        IFileSystem fileSystem,
+        IZipArchiveProvider zipProvider,
+        IChmodProvider chmodProvider,
+        Platform platform,
+        ISassLogger log)
+    {
+        _platform = platform;
+        _httpClient = httpClient;
+        _fileSystem = fileSystem;
+        _zipProvider = zipProvider;
+        _chmodProvider = chmodProvider;
+        _log = log;
+        _latestVersionResolver = latestVersionResolver;
+    }
+
+    public string DownloadRuntime(string runtimeDirectory, string? version = null, int mutexTimeoutSeconds = 300)
+    {
+        if (string.IsNullOrWhiteSpace(runtimeDirectory))
+        {
+            throw new ArgumentException("Runtime directory must be specified when using SassRuntimeDownload", nameof(runtimeDirectory));
+        }
+
+        var runtimeId = SassRuntimeResolver.GetRuntimeIdentifier(_platform);
+        var executablePath = SassRuntimeResolver.GetExecutablePath(runtimeDirectory, _platform);
+        var versionMarkerPath = GetVersionMarkerPath(executablePath);
+        var hasExplicitVersion = !string.IsNullOrWhiteSpace(version);
+
+        if (hasExplicitVersion && IsCacheValidForVersion(executablePath, versionMarkerPath, version!))
+        {
+            _log.LogMessage($"Dart Sass {version} is already cached at {executablePath}. Skipping download.");
+            _chmodProvider.EnsureExecutablePermissions(executablePath);
+            return executablePath;
+        }
+
+        var fullRuntimePath = Path.Combine(runtimeDirectory, runtimeId, "native");
+        _fileSystem.Directory.CreateDirectory(fullRuntimePath);
+
+        using var mutex = new Mutex(false, CreateMutexName(executablePath), out var createdNew);
+
+        if (!createdNew)
+        {
+            _log.LogMessage("Another process is downloading the Sass runtime. Waiting...");
+        }
+
+        bool acquired;
+        try
+        {
+            acquired = mutex.WaitOne(TimeSpan.FromSeconds(mutexTimeoutSeconds));
+        }
+        catch (AbandonedMutexException)
+        {
+            acquired = true;
+        }
+
+        if (!acquired)
+        {
+            throw new TimeoutException("Timed out waiting for another process to finish downloading the Sass runtime.");
+        }
+
+        try
+        {
+            if (hasExplicitVersion && IsCacheValidForVersion(executablePath, versionMarkerPath, version!))
+            {
+                _log.LogMessage($"Dart Sass {version} was downloaded by another process while waiting. Skipping download.");
+                _chmodProvider.EnsureExecutablePermissions(executablePath);
+                return executablePath;
+            }
+
+            return hasExplicitVersion
+                ? DownloadVersion(fullRuntimePath, executablePath, versionMarkerPath, version!)
+                : ResolveAndDownloadLatest(fullRuntimePath, executablePath, versionMarkerPath);
+        }
+        finally
+        {
+            mutex.ReleaseMutex();
+        }
+    }
+
+    public Task<string> DownloadRuntimeAsync(string runtimeDirectory, string? version = null, int mutexTimeoutSeconds = 300)
+        => Task.Run(() => DownloadRuntime(runtimeDirectory, version, mutexTimeoutSeconds));
+
+    public static HttpClient CreateHttpClient()
+    {
+        var handler = new HttpClientHandler
+        {
+            AllowAutoRedirect = true,
+            MaxAutomaticRedirections = 10
+        };
+        var client = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromMinutes(5)
+        };
+        client.DefaultRequestHeaders.Add("User-Agent", "Scarlet.Sass");
+        return client;
+    }
+
+    internal static string CreateMutexName(string executablePath)
+    {
+        var normalizedPath = Path.GetFullPath(executablePath).ToUpperInvariant();
+        var hashString = HashUtilities.ComputeSha256Hex(normalizedPath).ToUpperInvariant();
+        return $"Global\\ScarletSass_{hashString}";
+    }
+
+    private string DownloadVersion(string fullRuntimePath, string executablePath, string versionMarkerPath, string version)
+    {
+        var archiveName = GetArchiveName(version);
+        var downloadUrl = $"{GithubReleasesUrl}/download/{version}/{archiveName}";
+        DownloadAndExtractAsync(downloadUrl, fullRuntimePath, archiveName).GetAwaiter().GetResult();
+
+        if (!_fileSystem.File.Exists(executablePath))
+        {
+            throw new FileNotFoundException($"Dart Sass executable was not found after extraction at expected path: {executablePath}");
+        }
+
+        _chmodProvider.EnsureExecutablePermissions(executablePath);
+        WriteVersionMarker(versionMarkerPath, version);
+        return executablePath;
+    }
+
+    private string ResolveAndDownloadLatest(string fullRuntimePath, string executablePath, string versionMarkerPath)
+    {
+        var resolvedVersion = _latestVersionResolver
+            .TryResolveVersionAsync($"{GithubReleasesUrl}/latest")
+            .GetAwaiter()
+            .GetResult();
+
+        if (resolvedVersion is not null && IsCacheValidForVersion(executablePath, versionMarkerPath, resolvedVersion))
+        {
+            _log.LogMessage($"Dart Sass 'latest' still resolves to {resolvedVersion}, which is already cached at {executablePath}. Skipping download.");
+            _chmodProvider.EnsureExecutablePermissions(executablePath);
+            return executablePath;
+        }
+
+        if (resolvedVersion is null)
+        {
+            throw new InvalidOperationException("Could not resolve the latest Dart Sass release version from GitHub.");
+        }
+
+        _log.LogMessage($"Dart Sass 'latest' resolved to {resolvedVersion}.");
+        return DownloadVersion(fullRuntimePath, executablePath, versionMarkerPath, resolvedVersion);
+    }
+
+    private string GetArchiveName(string version)
+    {
+        var platformName = SassRuntimeResolver.GetDownloadName(_platform);
+        var extension = _platform is Platform.WindowsX64 or Platform.WindowsArm64 ? "zip" : "tar.gz";
+        return $"dart-sass-{version}-{platformName}.{extension}";
+    }
+
+    private async Task DownloadAndExtractAsync(string downloadUrl, string fullRuntimePath, string archiveName)
+    {
+        using var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+        EnsureSuccessOrThrow(response, downloadUrl);
+
+        var tempPath = Path.Combine(Path.GetTempPath(), $"{archiveName}.{Guid.NewGuid():N}.tmp");
+        _fileSystem.Directory.CreateDirectory(Path.GetTempPath());
+
+        try
+        {
+            using (var stream = _fileSystem.File.Create(tempPath))
+            {
+                await response.Content.CopyToAsync(stream);
+            }
+
+            DeleteDirectoryIfExists(Path.Combine(fullRuntimePath, ArchiveRootDirectory));
+
+            if (archiveName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                ExtractZip(tempPath, fullRuntimePath);
+            }
+            else
+            {
+                ExtractTarGz(tempPath, fullRuntimePath);
+            }
+        }
+        finally
+        {
+            DeleteFileIfExists(tempPath);
+        }
+    }
+
+    private void ExtractZip(string archivePath, string destinationDirectory)
+    {
+        using var archive = _zipProvider.OpenRead(archivePath);
+        foreach (var entry in archive.Entries)
+        {
+            if (string.IsNullOrEmpty(entry.Name))
+            {
+                continue;
+            }
+
+            var destinationPath = ResolveArchiveDestination(destinationDirectory, entry.FullName);
+            var directory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                _fileSystem.Directory.CreateDirectory(directory);
+            }
+
+            _zipProvider.ExtractToFile(entry, destinationPath, overwrite: true);
+        }
+    }
+
+    private void ExtractTarGz(string archivePath, string destinationDirectory)
+    {
+        using var file = _fileSystem.File.OpenRead(archivePath);
+        using var gzip = new GZipStream(file, CompressionMode.Decompress);
+        ExtractTar(gzip, destinationDirectory);
+    }
+
+    private void ExtractTar(Stream stream, string destinationDirectory)
+    {
+        var header = new byte[512];
+
+        while (true)
+        {
+            ReadExactly(stream, header, 0, header.Length);
+            if (IsAllZero(header))
+            {
+                break;
+            }
+
+            var name = ReadNullTerminatedAscii(header, 0, 100);
+            var sizeText = ReadNullTerminatedAscii(header, 124, 12).Trim();
+            var typeFlag = (char)header[156];
+            var size = string.IsNullOrWhiteSpace(sizeText) ? 0 : Convert.ToInt64(sizeText, 8);
+
+            if (string.IsNullOrEmpty(name))
+            {
+                SkipEntry(stream, size);
+                continue;
+            }
+
+            var destinationPath = ResolveArchiveDestination(destinationDirectory, name);
+
+            if (typeFlag == '5')
+            {
+                _fileSystem.Directory.CreateDirectory(destinationPath);
+                continue;
+            }
+
+            var directory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                _fileSystem.Directory.CreateDirectory(directory);
+            }
+
+            using (var output = _fileSystem.File.Create(destinationPath))
+            {
+                CopyExactly(stream, output, size);
+            }
+
+            SkipPadding(stream, size);
+        }
+    }
+
+    private static void EnsureSuccessOrThrow(HttpResponseMessage response, string downloadUrl)
+    {
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException($"Failed to download Sass runtime from {downloadUrl}. Status: {response.StatusCode}");
+        }
+    }
+
+    private string ResolveArchiveDestination(string destinationDirectory, string entryName)
+    {
+        var normalizedName = entryName.Replace('/', Path.DirectorySeparatorChar);
+        var destinationPath = Path.GetFullPath(Path.Combine(destinationDirectory, normalizedName));
+        var destinationRoot = Path.GetFullPath(destinationDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+        if (!destinationPath.StartsWith(destinationRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"Archive entry '{entryName}' resolves outside the destination directory.");
+        }
+
+        return destinationPath;
+    }
+
+    private static string GetVersionMarkerPath(string executablePath) => executablePath + ".version";
+
+    private bool IsCacheValidForVersion(string executablePath, string versionMarkerPath, string expectedVersion)
+    {
+        if (!_fileSystem.File.Exists(executablePath) || !_fileSystem.File.Exists(versionMarkerPath))
+        {
+            return false;
+        }
+
+        var storedVersion = _fileSystem.File.ReadAllText(versionMarkerPath).Trim();
+        return string.Equals(storedVersion, expectedVersion, StringComparison.Ordinal);
+    }
+
+    private void WriteVersionMarker(string versionMarkerPath, string version)
+    {
+        _fileSystem.File.WriteAllText(versionMarkerPath, version);
+    }
+
+    private void DeleteFileIfExists(string path)
+    {
+        if (_fileSystem.File.Exists(path))
+        {
+            _fileSystem.File.Delete(path);
+        }
+    }
+
+    private void DeleteDirectoryIfExists(string path)
+    {
+        if (_fileSystem.Directory.Exists(path))
+        {
+            _fileSystem.Directory.Delete(path, recursive: true);
+        }
+    }
+
+    private static void ReadExactly(Stream stream, byte[] buffer, int offset, int count)
+    {
+        var read = 0;
+        while (read < count)
+        {
+            var n = stream.Read(buffer, offset + read, count - read);
+            if (n == 0)
+            {
+                throw new EndOfStreamException("Unexpected end of tar archive.");
+            }
+
+            read += n;
+        }
+    }
+
+    private static bool IsAllZero(byte[] buffer)
+    {
+        foreach (var value in buffer)
+        {
+            if (value != 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static string ReadNullTerminatedAscii(byte[] buffer, int offset, int count)
+    {
+        var length = 0;
+        while (length < count && buffer[offset + length] != 0)
+        {
+            length++;
+        }
+
+        return Encoding.ASCII.GetString(buffer, offset, length);
+    }
+
+    private static void CopyExactly(Stream input, Stream output, long bytes)
+    {
+        var buffer = new byte[81920];
+        var remaining = bytes;
+        while (remaining > 0)
+        {
+            var read = input.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
+            if (read == 0)
+            {
+                throw new EndOfStreamException("Unexpected end of tar archive entry.");
+            }
+
+            output.Write(buffer, 0, read);
+            remaining -= read;
+        }
+    }
+
+    private static void SkipEntry(Stream stream, long size)
+    {
+        var buffer = new byte[81920];
+        var remaining = size;
+        while (remaining > 0)
+        {
+            var read = stream.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
+            if (read == 0)
+            {
+                throw new EndOfStreamException("Unexpected end of tar archive entry.");
+            }
+
+            remaining -= read;
+        }
+
+        SkipPadding(stream, size);
+    }
+
+    private static void SkipPadding(Stream stream, long size)
+    {
+        var padding = (512 - (size % 512)) % 512;
+        while (padding > 0)
+        {
+            if (stream.ReadByte() < 0)
+            {
+                throw new EndOfStreamException("Unexpected end of tar archive padding.");
+            }
+
+            padding--;
+        }
+    }
+}

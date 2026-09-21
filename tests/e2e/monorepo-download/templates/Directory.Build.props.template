@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- Shared Sass download configuration for all projects in the monorepo -->
+    <SassRuntimeDownload>true</SassRuntimeDownload>
+    <SassVersionDownload>{{Sass_VERSION}}</SassVersionDownload>
+    <SassRuntimeDirectory>{{SHARED_RUNTIME_DIR}}</SassRuntimeDirectory>
+  </PropertyGroup>
+</Project>

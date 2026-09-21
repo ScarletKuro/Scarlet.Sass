@@ -1,0 +1,28 @@
+<Project>
+  <Target Name="CopySassToRuntimeFolder" AfterTargets="Build">
+    <PropertyGroup>
+      <RidOutputDir>$(TargetDir)runtimes/$(RuntimeRid)/native/dart-sass</RidOutputDir>
+      <SassSourceDir>$(MSBuildProjectDirectory)/dart-sass</SassSourceDir>
+    </PropertyGroup>
+
+    <Error Condition="!Exists('$(SassSourceDir)/$(SassExecutableName)')"
+           Text="Dart Sass was not found at '$(SassSourceDir)/$(SassExecutableName)'. Check network access to github.com and the runtime download target output." />
+
+    <ItemGroup>
+      <SassRuntimeFiles Include="$(SassSourceDir)/**/*" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(RidOutputDir)" />
+    <Copy SourceFiles="@(SassRuntimeFiles)"
+          DestinationFiles="@(SassRuntimeFiles->'$(RidOutputDir)/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+
+    <Exec Condition="$([MSBuild]::IsOsUnixLike()) and Exists('$(RidOutputDir)/sass')" Command="chmod +x '$(RidOutputDir)/sass'" />
+  </Target>
+
+  <ItemGroup>
+    <None Include="$(MSBuildProjectDirectory)/dart-sass/**/*"
+          Pack="true"
+          PackagePath="runtimes/$(RuntimeRid)/native/dart-sass/" />
+  </ItemGroup>
+</Project>

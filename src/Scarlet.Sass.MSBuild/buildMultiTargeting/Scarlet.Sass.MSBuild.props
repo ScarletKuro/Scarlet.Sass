@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <SassEnabled Condition="'$(SassEnabled)' == ''">true</SassEnabled>
+    <SassOutputStyle Condition="'$(SassOutputStyle)' == ''">Auto</SassOutputStyle>
+    <SassSourceMap Condition="'$(SassSourceMap)' == ''">Auto</SassSourceMap>
+    <SassEmbedSources Condition="'$(SassEmbedSources)' == ''">Auto</SassEmbedSources>
+    <SassQuietDeps Condition="'$(SassQuietDeps)' == ''">false</SassQuietDeps>
+    <SassLoadPaths Condition="'$(SassLoadPaths)' == ''"></SassLoadPaths>
+    <SassPkgImporter Condition="'$(SassPkgImporter)' == ''"></SassPkgImporter>
+    <SassSilenceDeprecations Condition="'$(SassSilenceDeprecations)' == ''"></SassSilenceDeprecations>
+    <SassFatalDeprecations Condition="'$(SassFatalDeprecations)' == ''"></SassFatalDeprecations>
+    <SassAdditionalArguments Condition="'$(SassAdditionalArguments)' == ''"></SassAdditionalArguments>
+    <SassRuntimeDirectory Condition="'$(SassRuntimeDirectory)' == ''"></SassRuntimeDirectory>
+    <SassRuntimeDownload Condition="'$(SassRuntimeDownload)' == ''">false</SassRuntimeDownload>
+    <SassVersionDownload Condition="'$(SassVersionDownload)' == ''"></SassVersionDownload>
+    <SassDownloadMutexTimeoutSeconds Condition="'$(SassDownloadMutexTimeoutSeconds)' == ''">300</SassDownloadMutexTimeoutSeconds>
+    <SassStampDirectory Condition="'$(SassStampDirectory)' == ''"></SassStampDirectory>
+  </PropertyGroup>
+</Project>

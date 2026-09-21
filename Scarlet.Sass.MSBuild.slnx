@@ -1,0 +1,29 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/samples/">
+    <Project Path="samples/Scarlet.Sass.Sample.Download/Scarlet.Sass.Sample.Download.csproj" />
+    <Project Path="samples/Scarlet.Sass.Sample/Scarlet.Sass.Sample.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Scarlet.Sass.Cli/Scarlet.Sass.Cli.csproj" />
+    <Project Path="src/Scarlet.Sass.Core/Scarlet.Sass.Core.csproj" />
+    <Project Path="src/Scarlet.Sass.MSBuild/Scarlet.Sass.MSBuild.csproj" />
+    <Project Path="src/Scarlet.Sass.Runtime.darwin-arm64/Scarlet.Sass.Runtime.darwin-arm64.csproj" />
+    <Project Path="src/Scarlet.Sass.Runtime.darwin-x64/Scarlet.Sass.Runtime.darwin-x64.csproj" />
+    <Project Path="src/Scarlet.Sass.Runtime.linux-arm64/Scarlet.Sass.Runtime.linux-arm64.csproj" />
+    <Project Path="src/Scarlet.Sass.Runtime.linux-arm64-musl/Scarlet.Sass.Runtime.linux-arm64-musl.csproj" />
+    <Project Path="src/Scarlet.Sass.Runtime.linux-x64/Scarlet.Sass.Runtime.linux-x64.csproj" />
+    <Project Path="src/Scarlet.Sass.Runtime.linux-x64-musl/Scarlet.Sass.Runtime.linux-x64-musl.csproj" />
+    <Project Path="src/Scarlet.Sass.Runtime.windows-arm64/Scarlet.Sass.Runtime.windows-arm64.csproj" />
+    <Project Path="src/Scarlet.Sass.Runtime.windows-x64/Scarlet.Sass.Runtime.windows-x64.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Scarlet.Sass.Cli.Tests/Scarlet.Sass.Cli.Tests.csproj" />
+    <Project Path="tests/Scarlet.Sass.MSBuild.IntegrationTests/Scarlet.Sass.MSBuild.IntegrationTests.csproj" />
+    <Project Path="tests/Scarlet.Sass.MSBuild.Tests/Scarlet.Sass.MSBuild.Tests.csproj" />
+  </Folder>
+</Solution>

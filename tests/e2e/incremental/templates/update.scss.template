@@ -1,0 +1,4 @@
+
+.incremental-updated {
+  color: green;
+}

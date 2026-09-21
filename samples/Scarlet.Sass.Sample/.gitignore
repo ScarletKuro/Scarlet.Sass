@@ -1,0 +1,12 @@
+# Build outputs
+bin/
+obj/
+wwwroot/
+
+# Dependencies
+node_modules/
+bun.lockb
+
+# Output files that get generated
+*.min.js
+*.min.css

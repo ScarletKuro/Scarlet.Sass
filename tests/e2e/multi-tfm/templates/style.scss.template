@@ -1,0 +1,9 @@
+@use "variables";
+
+.multi-tfm {
+  color: variables.$brand;
+
+  &:hover {
+    color: black;
+  }
+}

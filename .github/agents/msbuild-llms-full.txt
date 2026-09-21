@@ -1,0 +1,830 @@
+# MSBuild Comprehensive Documentation for LLMs
+
+## Table of Contents
+1. Introduction to MSBuild
+2. MSBuild Architecture and Concepts
+3. Custom Task Development
+4. Build Process Overview
+5. MSBuild Properties and Items
+6. Task Writing Best Practices
+7. Inline Tasks and RoslynCodeTaskFactory
+8. Package Dependencies in MSBuild Tasks
+9. Common Patterns and Solutions
+10. Troubleshooting and Debugging
+
+---
+
+## 1. Introduction to MSBuild
+
+MSBuild (Microsoft Build Engine) is the build platform for .NET and Visual Studio. It provides an XML schema for project files that controls how the build platform processes and builds software.
+
+### Key Characteristics:
+- XML-based project files (.csproj, .vbproj, .fsproj)
+- Extensible through custom tasks and targets
+- Supports parallel builds
+- Deep Visual Studio integration
+- Cross-platform (Windows, Linux, macOS)
+
+---
+
+## 2. MSBuild Architecture and Concepts
+
+### Core Components:
+
+#### Projects
+- Defined by XML files (e.g., .csproj)
+- Contains properties, items, targets, and tasks
+- Can import other project files
+
+#### Properties
+- Name-value pairs used to configure builds
+- Syntax: `$(PropertyName)`
+- Can be passed via command line: `/p:PropertyName=Value`
+- Example: `$(Configuration)`, `$(OutputPath)`
+
+#### Items
+- Collections of files or objects
+- Syntax: `@(ItemName)`
+- Can have metadata
+- Example: `@(Compile)` for source files
+
+#### Targets
+- Named sequences of tasks
+- Have dependencies (DependsOnTargets)
+- Can be conditional
+- Example: `<Target Name="Build" DependsOnTargets="CoreBuild">`
+
+#### Tasks
+- Executable units of work
+- Built-in or custom
+- Inherit from `Microsoft.Build.Utilities.Task`
+- Example: `<Copy>`, `<Csc>`, custom tasks
+
+### Build Lifecycle:
+
+1. **Evaluation Phase**
+   - Properties are evaluated
+   - Items are populated
+   - Imports are processed
+   - Targets are defined
+
+2. **Execution Phase**
+   - Targets execute in dependency order
+   - Tasks within targets run sequentially
+   - Can be parallelized with `/m` switch
+
+---
+
+## 3. Custom Task Development
+
+### Creating a Custom Task
+
+Custom tasks must:
+1. Inherit from `Microsoft.Build.Utilities.Task`
+2. Override `Execute()` method
+3. Return `bool` (true for success, false for failure)
+
+#### Basic Task Structure:
+
+```csharp
+using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
+
+public class MyCustomTask : Task
+{
+    // Input property
+    [Required]
+    public string InputFile { get; set; }
+    
+    // Output property
+    [Output]
+    public string OutputFile { get; set; }
+    
+    public override bool Execute()
+    {
+        // Log messages
+        Log.LogMessage(MessageImportance.High, "Processing {0}", InputFile);
+        
+        try
+        {
+            // Task logic here
+            OutputFile = ProcessFile(InputFile);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.LogErrorFromException(ex);
+            return false;
+        }
+    }
+}
+```
+
+### Task Properties:
+
+- **[Required]**: Mark parameters that must be provided
+- **[Output]**: Mark parameters that return values to MSBuild
+- Both input and output properties must be public with getters/setters
+
+### Logging:
+
+```csharp
+// Information
+Log.LogMessage(MessageImportance.High, "Message");
+
+// Warning
+Log.LogWarning("Warning message");
+
+// Error
+Log.LogError("Error message");
+
+// From exception
+Log.LogErrorFromException(exception);
+```
+
+### Task Registration:
+
+In `.targets` file:
+```xml
+<UsingTask TaskName="MyCustomTask" 
+           AssemblyFile="$(MSBuildThisFileDirectory)..\lib\MyTasks.dll" />
+```
+
+---
+
+## 4. Build Process Overview
+
+### Standard .NET Build Process:
+
+1. **Restore** - Download NuGet packages
+2. **CoreCompile** - Compile source code
+3. **CopyFilesToOutputDirectory** - Copy output files
+4. **Build** - Main target that orchestrates the process
+
+### Customizing the Build:
+
+#### Before/After Targets:
+```xml
+<Target Name="CustomBefore" BeforeTargets="Build">
+  <!-- Runs before Build -->
+</Target>
+
+<Target Name="CustomAfter" AfterTargets="Build">
+  <!-- Runs after Build -->
+</Target>
+```
+
+#### Overriding Targets:
+```xml
+<Target Name="Build" DependsOnTargets="CoreBuild">
+  <!-- Custom build logic -->
+</Target>
+```
+
+### Build Events:
+
+- **PreBuildEvent**: Runs before build starts
+- **PostBuildEvent**: Runs after build completes
+- **PreLinkEvent**: Runs before linking (C++ projects)
+
+---
+
+## 5. MSBuild Properties and Items
+
+### Common Properties:
+
+```xml
+<!-- Configuration -->
+<Configuration>Debug</Configuration>
+<Platform>AnyCPU</Platform>
+
+<!-- Output -->
+<OutputPath>bin\$(Configuration)\</OutputPath>
+<OutputType>Library</OutputType>
+
+<!-- Assembly Info -->
+<AssemblyName>MyProject</AssemblyName>
+<RootNamespace>MyProject</RootNamespace>
+
+<!-- Targeting -->
+<TargetFramework>net8.0</TargetFramework>
+<TargetFrameworks>net8.0;net7.0</TargetFrameworks>
+```
+
+### SDK-Style Project Properties:
+
+```xml
+<!-- Package Info -->
+<PackageId>MyPackage</PackageId>
+<Version>1.0.0</Version>
+<Authors>Author Name</Authors>
+
+<!-- NuGet Package -->
+<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+<PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+<!-- Dependencies -->
+<PrivateAssets>all</PrivateAssets>
+<ExcludeAssets>runtime</ExcludeAssets>
+<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+```
+
+### Important Properties for Task Development:
+
+- **$(MSBuildThisFileDirectory)**: Directory of current .targets/.props file
+- **$(MSBuildProjectDirectory)**: Directory of the project being built
+- **$(MSBuildExtensionsPath)**: MSBuild extensions directory
+- **$(NuGetPackageRoot)**: Location of NuGet packages cache
+- **$(OutputPath)**: Build output directory
+
+### Item Collections:
+
+```xml
+<!-- Compile items -->
+<ItemGroup>
+  <Compile Include="**\*.cs" />
+  <Compile Remove="Excluded.cs" />
+</ItemGroup>
+
+<!-- Package references -->
+<ItemGroup>
+  <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+</ItemGroup>
+
+<!-- Project references -->
+<ItemGroup>
+  <ProjectReference Include="..\Other\Other.csproj" />
+</ItemGroup>
+```
+
+---
+
+## 6. Task Writing Best Practices
+
+### 1. Error Handling
+
+Always catch exceptions and log them properly:
+
+```csharp
+public override bool Execute()
+{
+    try
+    {
+        // Task logic
+        return true;
+    }
+    catch (Exception ex)
+    {
+        Log.LogErrorFromException(ex);
+        return false;
+    }
+}
+```
+
+### 2. Parameter Validation
+
+Validate required parameters early:
+
+```csharp
+public override bool Execute()
+{
+    if (string.IsNullOrEmpty(InputFile))
+    {
+        Log.LogError("InputFile parameter is required");
+        return false;
+    }
+    
+    if (!File.Exists(InputFile))
+    {
+        Log.LogError("Input file not found: {0}", InputFile);
+        return false;
+    }
+    
+    // Continue processing...
+}
+```
+
+### 3. Dependency Management
+
+For tasks that need external dependencies:
+
+#### Option 1: CopyLocalLockFileAssemblies
+```xml
+<PropertyGroup>
+  <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+</PropertyGroup>
+```
+
+This copies all dependencies to the output directory.
+
+#### Option 2: PrivateAssets
+```xml
+<PackageReference Include="Newtonsoft.Json" Version="13.0.1" 
+                  PrivateAssets="all" />
+```
+
+This prevents the dependency from being exposed to consumers.
+
+#### Option 3: Manual Copy (if needed)
+```xml
+<Target Name="CopyTaskDependencies" AfterTargets="Build">
+  <ItemGroup>
+    <TaskDeps Include="$(NuGetPackageRoot)package\version\lib\**\*.dll" />
+  </ItemGroup>
+  <Copy SourceFiles="@(TaskDeps)" DestinationFolder="$(OutputPath)" />
+</Target>
+```
+
+### 4. Thread Safety
+
+Tasks may be instantiated multiple times in parallel builds:
+- Use instance members, not static fields
+- Avoid global state
+- Make operations atomic when possible
+
+### 5. Cancellation Support
+
+Respect build cancellation:
+
+```csharp
+public override bool Execute()
+{
+    for (int i = 0; i < items.Count; i++)
+    {
+        if (BuildEngine.CancelRequested)
+        {
+            Log.LogMessage("Build cancelled");
+            return false;
+        }
+        
+        ProcessItem(items[i]);
+    }
+    return true;
+}
+```
+
+### 6. Testing Custom Tasks
+
+Use a mock build engine for unit testing:
+
+```csharp
+public class MockBuildEngine : IBuildEngine
+{
+    public List<string> Errors { get; } = new List<string>();
+    public List<string> Warnings { get; } = new List<string>();
+    public List<string> Messages { get; } = new List<string>();
+    
+    public void LogErrorEvent(BuildErrorEventArgs e)
+    {
+        Errors.Add(e.Message);
+    }
+    
+    public void LogWarningEvent(BuildWarningEventArgs e)
+    {
+        Warnings.Add(e.Message);
+    }
+    
+    public void LogMessageEvent(BuildMessageEventArgs e)
+    {
+        Messages.Add(e.Message);
+    }
+    
+    // Implement other IBuildEngine members...
+}
+```
+
+Usage:
+```csharp
+[Test]
+public void TestCustomTask()
+{
+    var task = new MyCustomTask
+    {
+        BuildEngine = new MockBuildEngine(),
+        InputFile = "test.txt"
+    };
+    
+    bool result = task.Execute();
+    Assert.IsTrue(result);
+}
+```
+
+---
+
+## 7. Inline Tasks and RoslynCodeTaskFactory
+
+### Inline Tasks with RoslynCodeTaskFactory
+
+RoslynCodeTaskFactory allows defining tasks directly in .targets files:
+
+```xml
+<UsingTask TaskName="CustomInlineTask"
+           TaskFactory="RoslynCodeTaskFactory"
+           AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+  <ParameterGroup>
+    <InputValue ParameterType="System.String" Required="true" />
+    <OutputValue ParameterType="System.String" Output="true" />
+  </ParameterGroup>
+  <Task>
+    <Using Namespace="System" />
+    <Using Namespace="System.IO" />
+    <Code Type="Fragment" Language="cs">
+      <![CDATA[
+        Log.LogMessage("Processing: " + InputValue);
+        OutputValue = InputValue.ToUpper();
+        return true;
+      ]]>
+    </Code>
+  </Task>
+</UsingTask>
+```
+
+### Benefits:
+- No separate assembly needed
+- Quick prototyping
+- Self-contained targets
+
+### Limitations:
+- Limited debugging capability
+- Can't reference external assemblies easily
+- Not suitable for complex logic
+
+### When to Use:
+- Simple transformations
+- Quick one-off tasks
+- Project-specific logic
+
+---
+
+## 8. Package Dependencies in MSBuild Tasks
+
+### Challenge: Dependency Loading
+
+MSBuild tasks run in a special context where dependency loading differs from normal applications.
+
+### Solution Strategies:
+
+#### 1. CopyLocalLockFileAssemblies (Recommended)
+
+Best approach for most scenarios:
+
+```xml
+<PropertyGroup>
+  <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+</PropertyGroup>
+
+<ItemGroup>
+  <PackageReference Include="System.IO.Abstractions" Version="22.1.0" />
+</ItemGroup>
+```
+
+**Pros:**
+- Automatic - MSBuild handles everything
+- Copies all transitive dependencies
+- Works with NuGet package content
+
+**Cons:**
+- Increases package size
+- May include unnecessary dependencies
+
+#### 2. PrivateAssets
+
+For dependencies that shouldn't be exposed to consumers:
+
+```xml
+<PackageReference Include="System.IO.Abstractions" Version="22.1.0"
+                  PrivateAssets="all" />
+```
+
+**Important:** With `PrivateAssets="all"`, you still need `CopyLocalLockFileAssemblies` to ensure dependencies are copied to output.
+
+#### 3. Assembly Resolution
+
+For advanced scenarios, implement custom assembly resolution:
+
+```csharp
+static MyTask()
+{
+    AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
+    {
+        string assemblyPath = Path.Combine(
+            Path.GetDirectoryName(typeof(MyTask).Assembly.Location),
+            new AssemblyName(args.Name).Name + ".dll");
+            
+        return File.Exists(assemblyPath) 
+            ? Assembly.LoadFrom(assemblyPath) 
+            : null;
+    };
+}
+```
+
+### Packaging Considerations:
+
+For NuGet packages containing MSBuild tasks:
+
+```xml
+<!-- Include task assembly and dependencies -->
+<ItemGroup>
+  <None Include="$(OutputPath)\*.dll" Pack="true" 
+        PackagePath="tasks\$(TargetFramework)" />
+</ItemGroup>
+
+<!-- Register task in .targets file -->
+<UsingTask TaskName="MyTask"
+           AssemblyFile="$(MSBuildThisFileDirectory)..\tasks\net8.0\MyTask.dll" />
+```
+
+---
+
+## 9. Common Patterns and Solutions
+
+### Pattern 1: Multi-Platform Support
+
+```csharp
+public class PlatformAwareTask : Task
+{
+    public override bool Execute()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            // Windows-specific logic
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            // Linux-specific logic
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            // macOS-specific logic
+        }
+        
+        return true;
+    }
+}
+```
+
+### Pattern 2: File System Abstraction
+
+For testability, use dependency injection:
+
+```csharp
+using System.IO.Abstractions;
+
+public class FileTask : Task
+{
+    private readonly IFileSystem _fileSystem;
+    
+    public FileTask() : this(new FileSystem()) { }
+    
+    internal FileTask(IFileSystem fileSystem)
+    {
+        _fileSystem = fileSystem;
+    }
+    
+    public override bool Execute()
+    {
+        if (!_fileSystem.File.Exists(InputFile))
+        {
+            Log.LogError("File not found: {0}", InputFile);
+            return false;
+        }
+        
+        return true;
+    }
+}
+```
+
+### Pattern 3: Incremental Builds
+
+Only process files that have changed:
+
+```csharp
+public override bool Execute()
+{
+    var inputs = InputFiles.Select(i => i.ItemSpec).ToArray();
+    var outputs = OutputFiles.Select(o => o.ItemSpec).ToArray();
+    
+    // Check if outputs are up-to-date
+    if (outputs.All(File.Exists))
+    {
+        var newestInput = inputs.Max(f => File.GetLastWriteTimeUtc(f));
+        var oldestOutput = outputs.Min(f => File.GetLastWriteTimeUtc(f));
+        
+        if (oldestOutput > newestInput)
+        {
+            Log.LogMessage("Outputs are up-to-date, skipping");
+            return true;
+        }
+    }
+    
+    // Process files
+    return ProcessFiles(inputs, outputs);
+}
+```
+
+### Pattern 4: Conditional Execution
+
+```xml
+<Target Name="CustomTarget" 
+        Condition="'$(Configuration)' == 'Release'">
+  <!-- Only runs in Release configuration -->
+</Target>
+
+<Target Name="ConditionalTask"
+        Condition="Exists('$(ProjectDir)config.json')">
+  <!-- Only runs if config file exists -->
+</Target>
+```
+
+### Pattern 5: Dynamic Item Creation
+
+```xml
+<Target Name="CreateItems">
+  <ItemGroup>
+    <GeneratedFiles Include="$(OutputPath)**\*.generated.cs" />
+  </ItemGroup>
+  
+  <Message Text="Found: @(GeneratedFiles)" />
+</Target>
+```
+
+---
+
+## 10. Troubleshooting and Debugging
+
+### Enable Diagnostic Logging
+
+```bash
+# Detailed logging
+dotnet build /v:diagnostic > build.log
+
+# Or with MSBuild directly
+msbuild /v:diag > build.log
+```
+
+### Common Issues and Solutions:
+
+#### Issue 1: "Could not load file or assembly"
+
+**Cause:** Missing dependencies or incorrect loading context
+
+**Solution:**
+1. Use `CopyLocalLockFileAssemblies`
+2. Check assembly versions match
+3. Verify dependencies are in output directory
+
+```bash
+# List assemblies in output
+ls bin/Debug/net8.0/*.dll
+```
+
+#### Issue 2: Task Not Found
+
+**Cause:** Incorrect AssemblyFile path or task not registered
+
+**Solution:**
+```xml
+<!-- Use MSBuildThisFileDirectory for relative paths -->
+<UsingTask TaskName="MyTask"
+           AssemblyFile="$(MSBuildThisFileDirectory)..\lib\MyTask.dll" />
+```
+
+#### Issue 3: Task Fails Silently
+
+**Cause:** Not returning false or not logging errors
+
+**Solution:**
+```csharp
+try
+{
+    // logic
+}
+catch (Exception ex)
+{
+    Log.LogErrorFromException(ex);
+    return false;  // Important!
+}
+```
+
+#### Issue 4: Properties Not Available
+
+**Cause:** Property evaluated too early or not defined
+
+**Solution:**
+```xml
+<!-- Define property before use -->
+<PropertyGroup>
+  <MyProperty Condition="'$(MyProperty)' == ''">DefaultValue</MyProperty>
+</PropertyGroup>
+```
+
+### Debugging Custom Tasks:
+
+#### Method 1: Debugger.Launch()
+
+```csharp
+public override bool Execute()
+{
+    #if DEBUG
+    System.Diagnostics.Debugger.Launch();
+    #endif
+    
+    // Task logic
+}
+```
+
+#### Method 2: Attach to MSBuild Process
+
+1. Build with `/p:DebugType=full`
+2. In Visual Studio: Debug → Attach to Process
+3. Find MSBuild.exe or dotnet.exe process
+4. Set breakpoints in task code
+
+#### Method 3: Extensive Logging
+
+```csharp
+Log.LogMessage(MessageImportance.High, "Debug: Variable = {0}", variable);
+```
+
+### Performance Profiling:
+
+Use MSBuild's built-in profiling:
+
+```bash
+dotnet build /p:PerformanceLogLocation=perf.log
+```
+
+---
+
+## Key Takeaways for AI Agents
+
+### Before Working with MSBuild:
+
+1. **Read this documentation** - Understand MSBuild concepts and patterns
+2. **Check existing implementations** - Look at similar tasks in the codebase
+3. **Understand the build context** - Know when/how the task will execute
+4. **Plan for dependencies** - Use CopyLocalLockFileAssemblies for external packages
+5. **Design for testability** - Use dependency injection and abstractions
+
+### Critical Rules:
+
+1. ✅ Always return `false` on failure
+2. ✅ Log errors with detailed messages
+3. ✅ Validate all required parameters
+4. ✅ Handle exceptions gracefully
+5. ✅ Use `CopyLocalLockFileAssemblies` for package dependencies
+6. ✅ Test tasks with MockBuildEngine
+7. ✅ Make internal methods testable via InternalsVisibleTo
+8. ✅ Use IFileSystem abstraction for file operations
+9. ❌ Don't use static fields (breaks parallel builds)
+10. ❌ Don't throw unhandled exceptions
+
+### Common Mistakes to Avoid:
+
+1. **Not copying dependencies** - Results in "Could not load assembly" errors
+2. **Incorrect path resolution** - Use MSBuildThisFileDirectory
+3. **Silent failures** - Always log and return false
+4. **Not handling cancellation** - Check BuildEngine.CancelRequested
+5. **Poor error messages** - Include context and actionable information
+6. **Untestable code** - Use dependency injection
+7. **Missing parameter validation** - Check required parameters early
+8. **Ignoring incremental build** - Respect file timestamps
+
+---
+
+## References
+
+### Official Documentation:
+- MSBuild Reference: https://learn.microsoft.com/en-us/visualstudio/msbuild/
+- Task Writing: https://learn.microsoft.com/en-us/visualstudio/msbuild/task-writing
+- Custom Tasks Tutorial: https://learn.microsoft.com/en-us/visualstudio/msbuild/tutorial-test-custom-task
+- Build Process Overview: https://learn.microsoft.com/en-us/visualstudio/msbuild/build-process-overview
+- MSBuild Properties: https://learn.microsoft.com/en-us/dotnet/core/project-sdk/msbuild-props
+- RoslynCodeTaskFactory: https://learn.microsoft.com/en-us/visualstudio/msbuild/msbuild-roslyncodetaskfactory
+
+### GitHub Resources:
+- MSBuild Repository: https://github.com/dotnet/msbuild
+- Build Task Demo: https://github.com/rainersigwald/build-task-in-solution-demo
+
+### Key MSBuild Documentation Topics:
+- Target build order
+- Property and item evaluation
+- Well-known item metadata
+- Reserved properties
+- Common MSBuild project items
+- MSBuild special characters
+- MSBuild conditions
+
+---
+
+**This documentation should be consulted before:**
+- Creating or modifying MSBuild tasks
+- Debugging build issues
+- Adding package dependencies to tasks
+- Implementing custom build logic
+- Working with .targets or .props files
+- Packaging MSBuild tasks for NuGet
+
+**Version:** 1.0  
+**Last Updated:** January 2026  
+**Maintained by:** Scarlet.Sass.MSBuild project

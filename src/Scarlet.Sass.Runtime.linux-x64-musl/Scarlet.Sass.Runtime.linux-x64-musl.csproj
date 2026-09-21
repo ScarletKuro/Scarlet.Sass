@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Version>$(SassVersion)</Version>
+    <PackageId>Scarlet.Sass.Runtime.linux-x64-musl</PackageId>
+    <Description>Sass binary for Linux x64 (musl, baseline)</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <DevelopmentDependency>True</DevelopmentDependency>
+
+    <!-- Asset-only package: it ships runtimes/ and build/, never a managed assembly.
+         Without this, consumers get a compile reference to an empty Scarlet.Sass.Runtime.*.dll. -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+
+    <!-- RID-specific settings -->
+    <RuntimeRid>linux-musl-x64</RuntimeRid>
+    <SassExecutableName>sass</SassExecutableName>
+
+    <!-- CI -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>ScarletKuro</Authors>
+    <RepositoryUrl>https://github.com/ScarletKuro/Scarlet.Sass</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageTags>Sass;runtime;linux;x64;musl</PackageTags>
+  </PropertyGroup>
+
+  <!-- Pack README.md, icon, build, and buildTransitive props into package -->
+  <ItemGroup>
+    <None Update="README.md">
+      <Pack>true</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\icon.png">
+      <Pack>true</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="build\**\*">
+      <Pack>true</Pack>
+      <PackagePath>build\</PackagePath>
+    </None>
+    <None Include="buildMultiTargeting\**\*">
+      <Pack>true</Pack>
+      <PackagePath>buildMultiTargeting\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <!-- Downloads dart-sass/ next to the .csproj if missing -->
+  <Target Name="DownloadSassIfMissing" BeforeTargets="Build">
+    <PropertyGroup>
+      <!-- Paths to helper scripts -->
+      <SassDownloadScriptPathPwsh>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..\tools\download-Sass.ps1'))</SassDownloadScriptPathPwsh>
+      <SassDownloadScriptPathBash>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../tools/download-Sass.sh'))</SassDownloadScriptPathBash>
+      <SassOutputDirectory>$(MSBuildThisFileDirectory)dart-sass</SassOutputDirectory>
+      <SassDownloadFilename>dart-sass-$(SassVersion)-linux-x64-musl.tar.gz</SassDownloadFilename>
+    </PropertyGroup>
+
+    <Message Text="DownloadFilename resolved to: $(SassDownloadFilename)" Importance="High" />
+
+    <Exec Condition="'$(OS)' == 'Windows_NT'"
+          Command='pwsh -NoProfile -ExecutionPolicy Bypass -File "$(SassDownloadScriptPathPwsh)" -OutputDirectory "$(SassOutputDirectory)" -DownloadFilename "$(SassDownloadFilename)" -SassVersion "$(SassVersion)"'
+          ContinueOnError="true" IgnoreExitCode="true" />
+    <Exec Condition="'$(OS)' != 'Windows_NT'"
+          Command='bash "$(SassDownloadScriptPathBash)" "$(SassOutputDirectory)" "$(SassDownloadFilename)" "$(SassVersion)"'
+          ContinueOnError="true" IgnoreExitCode="true" />
+  </Target>
+
+  <!-- Common copy/pack logic -->
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\SassRuntime.targets" />
+</Project>
