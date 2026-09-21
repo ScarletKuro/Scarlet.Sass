@@ -133,7 +133,7 @@ public sealed class SassCompileTask : Task
             fileSystem.File.WriteAllText(stampPath, stampContent);
             fileSystem.File.WriteAllLines(manifestPath, expectedFiles);
 
-            GeneratedFiles = expectedFiles.Select(static path => (ITaskItem)new TaskItem(path)).ToArray();
+            GeneratedFiles = expectedFiles.Select(CreateGeneratedFileItem).ToArray();
             RemovedFiles = removedFiles.Select(static path => (ITaskItem)new TaskItem(path)).ToArray();
 
             return !Log.HasLoggedErrors;
@@ -508,6 +508,35 @@ public sealed class SassCompileTask : Task
         return Path.IsPathRooted(path)
             ? Path.GetFullPath(path)
             : Path.GetFullPath(Path.Combine(baseDirectory, path));
+    }
+
+    private ITaskItem CreateGeneratedFileItem(string path)
+    {
+        var item = new TaskItem(path);
+        item.SetMetadata("RelativePath", GetRelativePath(ProjectDirectory, path));
+        return item;
+    }
+
+    private static string GetRelativePath(string baseDirectory, string path)
+    {
+        var baseUri = new Uri(EnsureTrailingDirectorySeparator(Path.GetFullPath(baseDirectory)));
+        var pathUri = new Uri(Path.GetFullPath(path));
+
+        if (!string.Equals(baseUri.Scheme, pathUri.Scheme, StringComparison.OrdinalIgnoreCase))
+        {
+            return path;
+        }
+
+        var relative = Uri.UnescapeDataString(baseUri.MakeRelativeUri(pathUri).ToString());
+        return relative.Replace('/', Path.DirectorySeparatorChar);
+    }
+
+    private static string EnsureTrailingDirectorySeparator(string path)
+    {
+        return path.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+               || path.EndsWith(Path.AltDirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+            ? path
+            : path + Path.DirectorySeparatorChar;
     }
 
     private static bool IsPartial(string path) => Path.GetFileName(path).StartsWith("_", StringComparison.Ordinal);

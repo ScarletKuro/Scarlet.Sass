@@ -58,6 +58,10 @@ public class SassCompileTaskIntegrationTests
         Assert.False(File.Exists(workspace.PathTo("wwwroot", "css", "_variables.css")));
         Assert.Contains(".banner:hover", File.ReadAllText(cssPath));
         Assert.Contains(cssPath, task.GeneratedFiles.Select(static file => file.ItemSpec));
+        Assert.Contains(
+            task.GeneratedFiles,
+            file => string.Equals(file.ItemSpec, cssPath, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(file.GetMetadata("RelativePath"), Path.Combine("wwwroot", "css", "site.css"), StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

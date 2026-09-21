@@ -112,6 +112,8 @@ public class SassContractTests
         Assert.Contains("AdditionalArguments=\"$(SassAdditionalArguments)\"", targets);
         Assert.Contains("StampDirectory=\"$(_SassStampDirectory)\"", targets);
         Assert.Contains("RuntimePacks=\"@(SassRuntimePack)\"", targets);
+        Assert.DoesNotContain("GetRelativePath", targets);
+        Assert.Contains("<_SassGeneratedContent Include=\"%(_SassGeneratedFiles.RelativePath)\"", targets);
         Assert.Contains("ItemName=\"_SassGeneratedFiles\"", targets);
         Assert.Contains("<FileWrites Include=\"@(_SassGeneratedFiles)\"", targets);
     }

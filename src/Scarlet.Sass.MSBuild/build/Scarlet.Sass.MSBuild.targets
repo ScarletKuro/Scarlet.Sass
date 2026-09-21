@@ -38,7 +38,7 @@
     <ItemGroup>
       <Content Remove="@(_SassRemovedFiles)" />
       <None Remove="@(_SassRemovedFiles)" />
-      <_SassGeneratedContent Include="$([System.IO.Path]::GetRelativePath('$(MSBuildProjectDirectory)', '%(_SassGeneratedFiles.Identity)'))" />
+      <_SassGeneratedContent Include="%(_SassGeneratedFiles.RelativePath)" />
       <_SassNewContent Include="@(_SassGeneratedContent)" Exclude="@(Content)" />
       <Content Include="@(_SassNewContent)" CopyToPublishDirectory="PreserveNewest" />
       <FileWrites Include="@(_SassGeneratedFiles)" />
