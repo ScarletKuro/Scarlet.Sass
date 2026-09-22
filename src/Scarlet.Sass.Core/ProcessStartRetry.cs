@@ -11,9 +11,9 @@ namespace Scarlet.Sass.Core;
 /// executable as busy (ETXTBSY).
 /// </summary>
 /// <remarks>
-/// Shared by <c>Scarlet.Sass.MSBuild.SassCompileTask</c> and <c>Scarlet.Sass.Cli.ProcessLauncher</c>: both exec a
-/// Sass binary that may have just been downloaded or used by another build/tool invocation. A child process
-/// can still hold the executable open briefly even though the earlier run has already exited.
+/// Shared by <c>Scarlet.Sass.MSBuild.SassCompileTask</c> and <c>Scarlet.Sass.Cli.ProcessLauncher</c>: both may
+/// start a Dart Sass process file that was just downloaded or used by another build/tool invocation. A child
+/// process can still hold that file open briefly even though the earlier run has already exited.
 /// </remarks>
 [ExcludeFromCodeCoverage]
 public static class ProcessStartRetry

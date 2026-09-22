@@ -35,7 +35,7 @@ public sealed class SassRuntimePack
     /// <summary>Metadata holding the .NET runtime identifier the pack provides (for example <c>osx-arm64</c>). Required.</summary>
     public const string RidMetadataName = "Rid";
 
-    /// <summary>Metadata holding the directory that contains <c>&lt;rid&gt;/native/&lt;executable&gt;</c>. Required.</summary>
+    /// <summary>Metadata holding the directory that contains <c>&lt;rid&gt;/native/dart-sass/&lt;launcher&gt;</c>. Required.</summary>
     public const string RuntimesPathMetadataName = "RuntimesPath";
 
     /// <summary>Metadata holding the Sass build variant. Informational only.</summary>
@@ -49,7 +49,7 @@ public sealed class SassRuntimePack
     /// </summary>
     /// <param name="id">Identifier of the pack, normally the runtime package id.</param>
     /// <param name="rid">The .NET runtime identifier the pack provides.</param>
-    /// <param name="runtimesPath">Directory containing <c>&lt;rid&gt;/native/&lt;executable&gt;</c>.</param>
+    /// <param name="runtimesPath">Directory containing <c>&lt;rid&gt;/native/dart-sass/&lt;launcher&gt;</c>.</param>
     /// <param name="variant">Optional Sass build variant, used for diagnostics only.</param>
     /// <param name="priority">Selection priority. Higher wins when several packs provide the same RID.</param>
     public SassRuntimePack(
@@ -87,7 +87,7 @@ public sealed class SassRuntimePack
     /// <summary>The .NET runtime identifier the pack provides.</summary>
     public string Rid { get; }
 
-    /// <summary>Directory containing <c>&lt;rid&gt;/native/&lt;executable&gt;</c>.</summary>
+    /// <summary>Directory containing <c>&lt;rid&gt;/native/dart-sass/&lt;launcher&gt;</c>.</summary>
     public string RuntimesPath { get; }
 
     /// <summary>Sass build variant, used for diagnostics only.</summary>

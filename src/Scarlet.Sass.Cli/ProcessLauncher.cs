@@ -48,8 +48,9 @@ internal sealed class ProcessLauncher : IProcessLauncher
         using var process = new Process();
         process.StartInfo = startInfo;
 
-        // Shared with Scarlet.Sass.MSBuild.SassCompileTask: both exec a Sass binary that may have just been
-        // downloaded, or just been run, by a step moments earlier, and can race the same ETXTBSY window.
+        // Shared with Scarlet.Sass.MSBuild.SassCompileTask: both start a Dart Sass process file that may
+        // have just been downloaded, or just been run, by a step moments earlier, and can race the same
+        // ETXTBSY window.
         ProcessStartRetry.Start(process, _log);
 
         using var signals = new SignalBridge(process);

@@ -71,12 +71,12 @@ Sass partials whose file name starts with `_` are not entry points. They can sti
 | `SassSilenceDeprecations` | empty | Semicolon-separated values for `--silence-deprecation`. |
 | `SassFatalDeprecations` | empty | Semicolon-separated values for `--fatal-deprecation`. |
 | `SassAdditionalArguments` | empty | Extra raw Dart Sass arguments. |
-| `SassRuntimeDirectory` | empty | Explicit runtime directory containing `<rid>/native/dart-sass/<sass executable>`. |
+| `SassRuntimeDirectory` | empty | Explicit runtime directory containing `<rid>/native/dart-sass/<sass launcher>`. |
 | `SassRuntimeDownload` | `false` | Download the runtime instead of using runtime packages. |
 | `SassVersionDownload` | empty | Version to download. Empty means the pinned package version. |
 | `SassDownloadMutexTimeoutSeconds` | `300` | Timeout for concurrent download coordination. |
 | `SassStampDirectory` | `$(IntermediateOutputPath)\Scarlet.Sass` | Settings stamp and generated-file manifest directory. |
-| `SassTimeoutMilliseconds` | `0` | Maximum time to wait for each `sass` invocation before killing it. `0` waits indefinitely. |
+| `SassTimeoutMilliseconds` | `0` | Maximum time to wait for each Dart Sass invocation before killing it. `0` waits indefinitely. |
 
 ## Item Metadata
 

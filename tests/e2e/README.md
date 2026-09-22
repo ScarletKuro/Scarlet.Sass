@@ -178,7 +178,7 @@ This scenario intentionally does not install a `Scarlet.Sass.Runtime.*` package.
 4. Copies checked-in Sass fixtures into each app, substituting a different CSS class per app.
 5. Builds the solution.
 6. Verifies both apps generated `wwwroot/css/site.css`.
-7. Verifies the shared runtime directory contains a Dart Sass executable.
+7. Verifies the shared runtime directory contains a Dart Sass launcher.
 
 **Regression it catches**: broken download URL/archive mapping, shared download mutex issues, partial runtime publication, and task-side host platform detection errors.
 
@@ -202,7 +202,7 @@ This scenario intentionally does not install a `Scarlet.Sass.Runtime.*` package.
 4. Uses an empty `SCARLET_SASS_CACHE_DIR` that should never be created.
 5. Installs `Scarlet.Sass.Cli`.
 6. Verifies the RID-specific CLI package directory exists.
-7. Verifies the package contains an embedded `sass` or `sass.bat`.
+7. Verifies the package contains an embedded `sass` or `sass.bat` launcher.
 8. Runs `dotnet sass --version` and checks Dart Sass reports the expected version.
 9. Runs `dotnet sass --scarlet-info` and checks `Source ... embedded`.
 10. Copies checked-in Sass fixtures into `Sass/`.

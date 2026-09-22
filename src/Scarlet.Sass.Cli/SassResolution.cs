@@ -13,7 +13,7 @@ namespace Scarlet.Sass.Cli;
 /// <param name="RequestedVersion">The version that was asked for.</param>
 /// <param name="CacheRoot">The per-user cache root in effect.</param>
 /// <param name="RuntimeDirectory">The version-scoped directory downloads go to.</param>
-/// <param name="EmbeddedProbePath">Where an embedded binary would have been, for diagnostics.</param>
+/// <param name="EmbeddedProbePath">Where an embedded Sass launcher would have been, for diagnostics.</param>
 /// <param name="FailureReason">Why resolution failed, when it did.</param>
 internal sealed record SassResolution(
     SassLaunchCommand? LaunchCommand,

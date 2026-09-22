@@ -5,10 +5,10 @@ using Scarlet.Sass.Core.Providers;
 namespace Scarlet.Sass.Cli;
 
 /// <summary>
-/// Finds the Sass launcher to run.
+/// Resolves the Sass runtime the CLI should use.
 /// </summary>
 /// <remarks>
-/// Precedence is explicit override, then the binary embedded in this package, then the per-user download
+/// Precedence is explicit override, then the runtime embedded in this package, then the per-user download
 /// cache, then a download. Every dependency is injected so the whole thing is testable with a
 /// <c>MockFileSystem</c> and without a network.
 /// </remarks>
@@ -26,7 +26,7 @@ internal sealed class SassCliResolver
     /// <param name="fileSystem">File system abstraction.</param>
     /// <param name="chmodProvider">Provider for setting executable permissions.</param>
     /// <param name="platform">The host platform.</param>
-    /// <param name="baseDirectory">Directory the tool executable lives in; where an embedded Sass sits.</param>
+    /// <param name="baseDirectory">Directory the tool executable lives in; where an embedded Dart Sass runtime sits.</param>
     /// <param name="downloaderFactory">Creates the downloader, so tests can assert it is never invoked.</param>
     public SassCliResolver(
         IFileSystem fileSystem,
@@ -43,7 +43,7 @@ internal sealed class SassCliResolver
     }
 
     /// <summary>
-    /// Resolves the Sass launcher to run.
+    /// Resolves the Sass launch command to run.
     /// </summary>
     /// <param name="options">Configuration read from the environment.</param>
     /// <param name="allowDownload">
@@ -85,11 +85,11 @@ internal sealed class SassCliResolver
             return Build(SassRuntimeResolver.CreateLaunchCommand(_fileSystem, options.ExplicitSassPath, _platform), SassSource.Explicit);
         }
 
-        // 2. The Sass launcher shipped inside this package - the whole point of the RID-specific packages.
+        // 2. The Dart Sass runtime shipped inside this package - the whole point of the RID-specific packages.
         if (CanUseEmbedded(options) && _fileSystem.File.Exists(embeddedPath))
         {
             // Mandatory, not defensive: NuGet packages carry no Unix permission bits, so on Linux and macOS
-            // the embedded binary is extracted 0644 and would fail with EACCES on the very first run.
+            // the embedded launcher and Dart VM are extracted 0644 and would fail with EACCES on first use.
             SassRuntimeResolver.EnsureExecutablePermissions(_fileSystem, _chmodProvider, embeddedPath, _platform);
 
             return Build(SassRuntimeResolver.CreateLaunchCommand(_fileSystem, embeddedPath, _platform), SassSource.Embedded);
@@ -136,7 +136,7 @@ internal sealed class SassCliResolver
             return false;
         }
 
-        // The embedded binary *is* the pinned version. Asking for a different one has to bypass it, or the
+        // The embedded runtime *is* the pinned version. Asking for a different one has to bypass it, or the
         // request would be silently ignored.
         return string.Equals(options.RequestedVersion, SassBuildInfo.PinnedSassVersion, StringComparison.OrdinalIgnoreCase);
     }

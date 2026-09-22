@@ -94,11 +94,16 @@ Runtime layout should follow NuGet native asset conventions:
 runtimes/
   linux-x64/
     native/
-      sass
+      dart-sass/
+        sass
+        src/
+          dart
+          sass.snapshot
 ```
 
-Windows uses `sass.bat`, `sass.exe`, or the executable name supplied by the Dart Sass release. The resolver
-should hide that detail behind per-platform metadata.
+Windows uses `sass.bat` as the public launcher and `src/dart.exe` as the Dart VM. The resolver should hide
+those details behind per-platform metadata and produce a `SassLaunchCommand`: the upstream launcher remains
+the display/fallback path, while official bundles are normally started as `src/dart(.exe) src/sass.snapshot`.
 
 ## MSBuild API
 
@@ -570,12 +575,12 @@ CLI engine implementation:
 ```csharp
 internal sealed class DartSassCliEngine : ISassCompilerEngine
 {
-    private readonly string _sassExecutablePath;
+    private readonly SassLaunchCommand _launchCommand;
     private readonly IProcessLauncher _processLauncher;
 
-    public DartSassCliEngine(string sassExecutablePath, IProcessLauncher processLauncher)
+    public DartSassCliEngine(SassLaunchCommand launchCommand, IProcessLauncher processLauncher)
     {
-        _sassExecutablePath = sassExecutablePath;
+        _launchCommand = launchCommand;
         _processLauncher = processLauncher;
     }
 
@@ -584,7 +589,7 @@ internal sealed class DartSassCliEngine : ISassCompilerEngine
         CancellationToken cancellationToken)
     {
         var arguments = DartSassArguments.From(request);
-        return _processLauncher.RunAsync(_sassExecutablePath, arguments, request.ProjectDirectory, cancellationToken);
+        return _processLauncher.RunAsync(_launchCommand, arguments, request.ProjectDirectory, cancellationToken);
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
@@ -787,7 +792,7 @@ Unit tests:
 
 - Platform detection and RID mapping.
 - Runtime pack parsing, deduplication, priority ordering.
-- Runtime executable path resolution.
+- Runtime pack selection and Sass launch command resolution.
 - Missing runtime diagnostics.
 - Dart Sass argument rendering.
 - `Auto` option resolution for Debug and Release.

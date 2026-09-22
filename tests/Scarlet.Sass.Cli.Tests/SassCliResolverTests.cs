@@ -66,7 +66,7 @@ public class SassCliResolverTests
     [Fact]
     public void Resolve_WithEmbeddedBinaryAndNestedDartRuntime_ShouldMakeBothExecutable()
     {
-        // Arrange - the "sass" launcher script execs into a nested "src/dart" binary, which needs its own
+        // Arrange - the "sass" launcher script execs into a nested "src/dart" executable, which needs its own
         // executable bit; only chmod'ing the launcher would still fail with EACCES on the very first run.
         var fileSystem = new MockFileSystem();
         var embedded = Path.Combine(ToolDirectory, "dart-sass", "sass");
@@ -164,7 +164,7 @@ public class SassCliResolverTests
     [Fact]
     public void Resolve_WhenADifferentVersionIsRequested_ShouldNotUseTheEmbeddedBinary()
     {
-        // Arrange - the embedded binary IS the pinned version, so honouring a different request means
+        // Arrange - the embedded runtime IS the pinned version, so honouring a different request means
         // bypassing it rather than silently ignoring the request
         var fileSystem = new MockFileSystem();
         fileSystem.AddFile(Path.Combine(ToolDirectory, "dart-sass", "sass"), new MockFileData("embedded"));

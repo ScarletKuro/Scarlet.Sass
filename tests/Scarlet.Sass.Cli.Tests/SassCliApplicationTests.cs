@@ -91,7 +91,7 @@ public class SassCliApplicationTests
     public void Run_WhenSassCannotBeStarted_ShouldReportItAsNotExecutable()
     {
         // Arrange - the file exists but the OS refuses to exec it: a missing exec bit, a corrupt download,
-        // or a binary for the wrong architecture
+        // or a process file for the wrong architecture
         var fileSystem = new MockFileSystem();
         fileSystem.AddFile("/tool/dart-sass/sass", new MockFileData("Sass"));
 

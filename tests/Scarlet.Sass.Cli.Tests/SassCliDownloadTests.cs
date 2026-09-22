@@ -10,7 +10,7 @@ namespace Scarlet.Sass.Cli.Tests;
 /// <remarks>
 /// Driven through a real <c>SassDownloader</c> over a mocked transport rather than a stubbed one, because
 /// what is worth checking is that the resolver hands it the right directory and version - and the
-/// directory is version-scoped precisely so a later version request is not served the earlier binary.
+/// directory is version-scoped precisely so a later version request is not served the earlier runtime.
 /// Uses <see cref="Platform.WindowsX64"/> throughout so the archive goes through the mocked
 /// <see cref="IZipArchiveProvider"/>; Dart Sass ships every other platform as a <c>.tar.gz</c>, which
 /// <see cref="Scarlet.Sass.Core.SassDownloader"/> reads with its own tar/gzip code rather than that

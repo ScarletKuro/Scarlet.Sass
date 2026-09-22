@@ -132,7 +132,7 @@
     globs the publish directory into tools/<tfm>/<rid>/, which is what puts it beside the app at runtime.
     Injected before AssignTargetPaths because that is when None items get their output paths assigned.
   -->
-  <Target Name="AddSassBinaryToOutputs"
+  <Target Name="AddSassRuntimeToOutputs"
           Condition="'$(EmbedSassRuntime)' == 'true'"
           BeforeTargets="AssignTargetPaths">
 

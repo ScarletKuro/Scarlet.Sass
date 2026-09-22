@@ -115,14 +115,14 @@ for app in App1 App2; do
 done
 
 section "Verifying Shared Runtime Directory"
-# One executable is enough here: this scenario is about shared download/publication, not runtime package
+# One launcher is enough here: this scenario is about shared download/publication, not runtime package
 # resolution. The task-side resolver decides the exact platform archive.
 RUNTIME_COUNT=$(find "$SHARED_RUNTIME_DIR" -type f \( -name "sass" -o -name "sass.bat" \) | wc -l)
 if [ "$RUNTIME_COUNT" -lt 1 ]; then
-    echo "✗ No Dart Sass executable found in shared runtime directory"
+    echo "✗ No Dart Sass launcher found in shared runtime directory"
     FAILED=1
 else
-    echo "✓ Shared runtime directory contains Dart Sass executable(s)"
+    echo "✓ Shared runtime directory contains Dart Sass launcher(s)"
     find "$SHARED_RUNTIME_DIR" -type f \( -name "sass" -o -name "sass.bat" \) -print
 fi
 

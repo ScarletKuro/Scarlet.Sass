@@ -27,17 +27,17 @@ Resolution order:
 3. Dart Sass in the per-user Scarlet cache
 4. download from `https://github.com/sass/dart-sass`
 
-The portable `any` tool package has no embedded Sass runtime and downloads on first use. RID-specific tool packages embed `dart-sass/sass` on Unix and `dart-sass/sass.bat` on Windows.
+The portable `any` tool package has no embedded Sass runtime and downloads on first use. RID-specific tool packages embed the official `dart-sass` folder. Scarlet reports `dart-sass/sass` or `dart-sass/sass.bat` as the Sass launcher, and may start `dart-sass/src/dart(.exe)` directly when the official layout is present.
 
 ## Environment Variables
 
 | Variable | Meaning |
 | --- | --- |
-| `SCARLET_SASS_PATH` | Use this Sass executable. Highest precedence. |
+| `SCARLET_SASS_PATH` | Use this Sass launcher path. Highest precedence. |
 | `SCARLET_SASS_VERSION` | Download a different Sass version or `latest`. |
 | `SCARLET_SASS_CACHE_DIR` | Override the cache root. |
 | `SCARLET_SASS_NO_EMBEDDED` | Ignore the embedded runtime. |
-| `SCARLET_SASS_DIAGNOSTICS` | Print the resolved Sass path before running. |
+| `SCARLET_SASS_DIAGNOSTICS` | Print the resolved Sass launcher before running. |
 | `SCARLET_SASS_PASSTHROUGH` | Forward `--scarlet-info` instead of handling it. |
 | `SCARLET_SASS_DOWNLOAD_TIMEOUT` | Seconds to wait for another process downloading Sass. |
 

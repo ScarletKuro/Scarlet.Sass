@@ -87,9 +87,9 @@ ok "The $DOTNET_RID tool package was restored"
 
 EMBEDDED_SASS="$(find "$RID_PACKAGE_DIR" -type f \( -name 'sass' -o -name 'sass.bat' \) 2>/dev/null | head -n 1)"
 if [ -z "$EMBEDDED_SASS" ]; then
-    fail "No embedded Dart Sass executable found in $RID_PACKAGE_DIR"
+    fail "No embedded Dart Sass launcher found in $RID_PACKAGE_DIR"
 fi
-ok "The tool package ships a Dart Sass executable"
+ok "The tool package ships a Dart Sass launcher"
 
 section "Verifying Argument Forwarding And Diagnostics"
 REPORTED_VERSION="$(dotnet sass --version)"
@@ -101,9 +101,9 @@ ok "'dotnet sass --version' printed Dart Sass's version ($REPORTED_VERSION)"
 if ! dotnet sass --scarlet-info | grep -q "^Source .*embedded"; then
     echo "dotnet sass --scarlet-info did not report embedded source"
     dotnet sass --scarlet-info || true
-    fail "The tool did not report the embedded binary as its source"
+    fail "The tool did not report the embedded runtime as its source"
 fi
-ok "The tool reports the embedded binary as its source"
+ok "The tool reports the embedded runtime as its source"
 
 section "Compiling SCSS"
 mkdir -p Sass out
@@ -140,4 +140,4 @@ if [ -z "${CI:-}" ]; then
 fi
 
 section "Result"
-ok "E2E CLI tool test completed successfully - Sass ran offline from the embedded binary"
+ok "E2E CLI tool test completed successfully - Sass ran offline from the embedded runtime"

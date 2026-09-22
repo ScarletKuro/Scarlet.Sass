@@ -63,7 +63,7 @@ public class ArgumentForwardingTests
     }
 
     [Fact]
-    public void Run_ShouldPassTheResolvedExecutableToTheLauncher()
+    public void Run_ShouldPassTheResolvedLaunchCommandToTheLauncher()
     {
         // Arrange
         var launcher = new RecordingProcessLauncher();
@@ -82,7 +82,7 @@ public class ArgumentForwardingTests
     [Fact]
     public void Run_WhenNothingCanBeResolved_ShouldReportAndNotLaunch()
     {
-        // Arrange - no embedded binary, and a downloader that would fail the test if it were used
+        // Arrange - no embedded runtime, and a downloader that would fail the test if it were used
         var fileSystem = new MockFileSystem();
         var environment = new FakeEnvironmentProvider(new Dictionary<string, string>
         {
@@ -134,7 +134,7 @@ public class ArgumentForwardingTests
             new RecordingChmodProvider(),
             Platform.LinuxX64,
             toolDirectory,
-            (_, _) => throw new InvalidOperationException("The embedded binary must be used without downloading."));
+            (_, _) => throw new InvalidOperationException("The embedded runtime must be used without downloading."));
 
         return new SassCliApplication(
             resolver,

@@ -223,7 +223,7 @@ public static class SassRuntimeResolver
         }
         catch (Exception)
         {
-            // An unreadable directory is not a reason to fail; assume glibc and let the binary speak for itself.
+            // An unreadable directory is not a reason to fail; assume glibc and let the runtime speak for itself.
             return false;
         }
     }

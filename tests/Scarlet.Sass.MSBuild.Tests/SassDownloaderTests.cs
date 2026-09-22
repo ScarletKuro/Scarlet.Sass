@@ -62,7 +62,7 @@ public class SassDownloaderTests
         // Assert
         Assert.Equal(expectedPath, result);
         Assert.True(mockFileSystem.File.Exists(expectedPath));
-        Assert.Equal("fake Sass executable", mockFileSystem.File.ReadAllText(expectedPath));
+        Assert.Equal("fake Sass launcher", mockFileSystem.File.ReadAllText(expectedPath));
         Assert.Equal(expectedPath, chmod.LastPath);
         Assert.Equal("1.4.2", mockFileSystem.File.ReadAllText(expectedPath + ".version").Trim());
     }
@@ -79,7 +79,7 @@ public class SassDownloaderTests
         var mockFileSystem = new MockFileSystem();
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz")
-                .Respond("application/gzip", CreateMockTarGz(("dart-sass/sass", "fake Sass executable")));
+                .Respond("application/gzip", CreateMockTarGz(("dart-sass/sass", "fake Sass launcher")));
 
         var downloader = CreateDownloader(mockFileSystem, mockHttp, platform);
 
@@ -88,7 +88,7 @@ public class SassDownloaderTests
 
         // Assert
         Assert.Equal(expectedPath, result);
-        Assert.Equal("fake Sass executable", mockFileSystem.File.ReadAllText(expectedPath));
+        Assert.Equal("fake Sass launcher", mockFileSystem.File.ReadAllText(expectedPath));
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class SassDownloaderTests
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz")
                 .Respond("application/gzip", CreateMockTarGz(
-                    ("dart-sass/sass", "fake Sass executable"),
+                    ("dart-sass/sass", "fake Sass launcher"),
                     ("dart-sass/src/dart", "fake dart runtime")));
 
         var downloader = new SassDownloader(
@@ -159,9 +159,9 @@ public class SassDownloaderTests
     }
 
     [Fact]
-    public void DownloadRuntime_WhenTarArchiveDoesNotContainTheExecutable_ShouldThrowFileNotFoundException()
+    public void DownloadRuntime_WhenTarArchiveDoesNotContainTheLauncher_ShouldThrowFileNotFoundException()
     {
-        // Mirrors DownloadRuntime_WhenArchiveDoesNotContainTheExecutable_... for the zip path.
+        // Mirrors DownloadRuntime_WhenArchiveDoesNotContainTheLauncher_... for the zip path.
         var platform = Platform.LinuxX64;
         var tempDir = "/test-runtime";
 
@@ -197,7 +197,7 @@ public class SassDownloaderTests
 
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz")
-                .Respond("application/gzip", CreateMockTarGz(("dart-sass/sass", "fake Sass executable")));
+                .Respond("application/gzip", CreateMockTarGz(("dart-sass/sass", "fake Sass launcher")));
 
         var downloader = CreateDownloader(mockFileSystem, mockHttp, platform);
 
@@ -273,7 +273,7 @@ public class SassDownloaderTests
         var markerPath = expectedPath + ".version";
 
         var mockFileSystem = new MockFileSystem();
-        mockFileSystem.AddFile(expectedPath, new MockFileData("stale executable"));
+        mockFileSystem.AddFile(expectedPath, new MockFileData("stale launcher"));
         mockFileSystem.AddFile(markerPath, new MockFileData("1.3.0"));
 
         var mockHttp = new MockHttpMessageHandler();
@@ -294,19 +294,19 @@ public class SassDownloaderTests
         Assert.Equal(expectedPath, result);
         Assert.Equal(1, requestCount);
         Assert.Equal("1.4.2", mockFileSystem.File.ReadAllText(markerPath).Trim());
-        Assert.Equal("fake Sass executable", mockFileSystem.File.ReadAllText(expectedPath));
+        Assert.Equal("fake Sass launcher", mockFileSystem.File.ReadAllText(expectedPath));
     }
 
     [Fact]
-    public void DownloadRuntime_WhenMarkerMissingButExecutableExists_ShouldRedownloadAndCreateMarker()
+    public void DownloadRuntime_WhenMarkerMissingButLauncherExists_ShouldRedownloadAndCreateMarker()
     {
-        // Simulate a runtime cached by a pre-marker version of SassDownloader (executable present, no marker).
+        // Simulate a runtime cached by a pre-marker version of SassDownloader (launcher present, no marker).
         var platform = Platform.WindowsX64;
         var tempDir = "/test-runtime";
         var expectedPath = ExpectedLauncherPath(tempDir, platform);
 
         var mockFileSystem = new MockFileSystem();
-        mockFileSystem.AddFile(expectedPath, new MockFileData("stale executable"));
+        mockFileSystem.AddFile(expectedPath, new MockFileData("stale launcher"));
 
         var mockHttp = new MockHttpMessageHandler();
         var requestCount = 0;
@@ -335,7 +335,7 @@ public class SassDownloaderTests
         var expectedPath = ExpectedLauncherPath(tempDir, platform);
 
         var mockFileSystem = new MockFileSystem();
-        mockFileSystem.AddFile(expectedPath, new MockFileData("already-cached executable"));
+        mockFileSystem.AddFile(expectedPath, new MockFileData("already-cached launcher"));
         mockFileSystem.AddFile(expectedPath + ".version", new MockFileData("1.4.2"));
 
         // No .When(...) registered: if the code tried to download, the mock would throw.
@@ -349,7 +349,7 @@ public class SassDownloaderTests
         // Assert
         Assert.Equal(expectedPath, result);
         Assert.Equal(1, resolver.CallCount);
-        Assert.Equal("already-cached executable", mockFileSystem.File.ReadAllText(expectedPath));
+        Assert.Equal("already-cached launcher", mockFileSystem.File.ReadAllText(expectedPath));
     }
 
     [Fact]
@@ -360,7 +360,7 @@ public class SassDownloaderTests
         var expectedPath = ExpectedLauncherPath(tempDir, platform);
 
         var mockFileSystem = new MockFileSystem();
-        mockFileSystem.AddFile(expectedPath, new MockFileData("stale executable"));
+        mockFileSystem.AddFile(expectedPath, new MockFileData("stale launcher"));
         mockFileSystem.AddFile(expectedPath + ".version", new MockFileData("1.4.1"));
 
         var mockHttp = new MockHttpMessageHandler();
@@ -418,10 +418,10 @@ public class SassDownloaderTests
     }
 
     [Fact]
-    public void DownloadRuntime_WhenArchiveDoesNotContainTheExecutable_ShouldThrowFileNotFoundException()
+    public void DownloadRuntime_WhenArchiveDoesNotContainTheLauncher_ShouldThrowFileNotFoundException()
     {
         // FakeZipArchiveProvider.OpenRead always reads from its own in-memory bytes rather than the
-        // downloaded file, so the missing-executable archive is injected through the provider itself.
+        // downloaded file, so the missing-launcher archive is injected through the provider itself.
         var platform = Platform.WindowsX64;
         var tempDir = "/test-runtime";
 
@@ -469,7 +469,7 @@ public class SassDownloaderTests
         }
         else
         {
-            mockHttp.When(url).Respond("application/gzip", CreateMockTarGz(($"dart-sass/{launcherName}", "fake Sass executable")));
+            mockHttp.When(url).Respond("application/gzip", CreateMockTarGz(($"dart-sass/{launcherName}", "fake Sass launcher")));
         }
 
         var downloader = CreateDownloader(mockFileSystem, mockHttp, platform);
@@ -609,7 +609,7 @@ public class SassDownloaderTests
     }
 
     private static MemoryStream CreateMockZip(string launcherName) =>
-        CreateMockZipWithEntry($"dart-sass/{launcherName}", "fake Sass executable");
+        CreateMockZipWithEntry($"dart-sass/{launcherName}", "fake Sass launcher");
 
     private static MemoryStream CreateMockZipWithEntry(string entryName, string content)
     {

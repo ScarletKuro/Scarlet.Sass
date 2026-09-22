@@ -4,39 +4,39 @@ using System.Xml.Linq;
 namespace Scarlet.Sass.MSBuild.IntegrationTests;
 
 /// <summary>
-/// Asserts that the Sass binary staged for this platform really is the version the repository claims.
+/// Asserts that the Sass launcher staged for this platform really is the version the repository claims.
 /// </summary>
 /// <remarks>
 /// <para>
 /// This exists because of a bug that shipped silently: <c>tools/download-sass.ps1</c> and
 /// <c>download-sass.sh</c> used to extract the archive into the project directory and then search that same
-/// directory for the executable. The search found the <em>existing</em> binary before the freshly extracted
+/// directory for the launcher. The search found the <em>existing</em> launcher before the freshly extracted
 /// one, concluded it was already in place, skipped the move - and still wrote the version marker. Every
-/// version bump after the first download therefore kept the old binary and relabelled it, so
+/// version bump after the first download therefore kept the old launcher and relabelled it, so
 /// <c>Scarlet.Sass.Runtime.* 1.4.2</c> would have shipped Sass 1.3.14.
 /// </para>
 /// <para>
-/// Nothing else catches that: the marker file agrees with itself, and a binary for another platform cannot
-/// be executed to check. Only the host platform's binary can be asked, which is why this runs per CI leg.
+/// Nothing else catches that: the marker file agrees with itself, and a launcher for another platform cannot
+/// be executed to check. Only the host platform's launcher can be asked, which is why this runs per CI leg.
 /// </para>
 /// </remarks>
-public class SassBinaryVersionTests
+public class SassLauncherVersionTests
 {
     [Fact]
-    public void StagedSassBinary_ShouldReportTheVersionTheRepositoryPinned()
+    public void StagedSassLauncher_ShouldReportTheVersionTheRepositoryPinned()
     {
         // Arrange
         var expectedVersion = ReadPinnedSassVersion();
         var platform = SassRuntimeResolver.GetCurrentPlatform();
         var runtimesDirectory = Path.Combine(Directory.GetCurrentDirectory(), "runtimes");
-        var SassPath = SassRuntimeResolver.GetLauncherPath(runtimesDirectory, platform);
+        var sassLauncherPath = SassRuntimeResolver.GetLauncherPath(runtimesDirectory, platform);
 
         Assert.True(
-            File.Exists(SassPath),
-            $"No Sass binary staged for {platform} at '{SassPath}'. Build Scarlet.Sass.MSBuild first.");
+            File.Exists(sassLauncherPath),
+            $"No Sass launcher staged for {platform} at '{sassLauncherPath}'. Build Scarlet.Sass.MSBuild first.");
 
         // Act
-        var reportedVersion = RunSass(SassPath, "--version");
+        var reportedVersion = RunSass(sassLauncherPath, "--version");
 
         // Assert
         Assert.Equal(expectedVersion, reportedVersion);
@@ -65,9 +65,9 @@ public class SassBinaryVersionTests
             $"Could not locate Directory.Build.props above '{AppContext.BaseDirectory}'.");
     }
 
-    private static string RunSass(string SassPath, string argument)
+    private static string RunSass(string sassLauncherPath, string argument)
     {
-        var startInfo = new ProcessStartInfo(SassPath)
+        var startInfo = new ProcessStartInfo(sassLauncherPath)
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -81,7 +81,7 @@ public class SassBinaryVersionTests
         var output = process.StandardOutput.ReadToEnd();
         process.WaitForExit();
 
-        Assert.True(process.ExitCode == 0, $"'{SassPath} {argument}' exited with {process.ExitCode}.");
+        Assert.True(process.ExitCode == 0, $"'{sassLauncherPath} {argument}' exited with {process.ExitCode}.");
 
         return output.Trim();
     }

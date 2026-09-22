@@ -28,7 +28,7 @@ internal sealed class FakeZipArchiveProvider : IZipArchiveProvider
             var entry = archive.CreateEntry("dart-sass/sass.bat");
             using var entryStream = entry.Open();
             using var writer = new StreamWriter(entryStream);
-            writer.Write("fake Sass executable");
+            writer.Write("fake Sass launcher");
         }
 
         _zipBytes = buffer.ToArray();

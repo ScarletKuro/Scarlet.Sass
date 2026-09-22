@@ -8,12 +8,12 @@ Scarlet.Sass integrates the official Dart Sass compiler into .NET builds. The MS
 
 ## Dart Sass
 
-Before changing Sass argument rendering, release archive mapping, load paths, `--pkg-importer`, source maps, deprecation flags, or runtime download behavior, verify the behavior against official Dart Sass documentation, the pinned Dart Sass binary, or Dart Sass GitHub releases.
+Before changing Sass argument rendering, release archive mapping, load paths, `--pkg-importer`, source maps, deprecation flags, or runtime download behavior, verify the behavior against official Dart Sass documentation, the pinned Dart Sass runtime, or Dart Sass GitHub releases.
 
 Important Sass-specific facts:
 - The runtime packages contain the official `dart-sass` folder.
 - Official bundles should be launched as `dart-sass/src/dart(.exe) dart-sass/src/sass.snapshot`, not through `sass` or `sass.bat`, when that layout is present. The public launcher remains the display/probe path. This avoids wrapper-child timeout and orphan behavior, especially on Windows.
-- Unix launchers need both `dart-sass/sass` and `dart-sass/src/dart` to be executable.
+- Unix runtime folders need both `dart-sass/sass` and `dart-sass/src/dart` to be executable.
 - The CLI is `sass`; the .NET tool command is `dotnet sass`.
 - Scarlet CLI environment variables use the `SCARLET_SASS_*` prefix.
 - There is no Scarlet JSON configuration convention.

@@ -3,7 +3,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Version>$(SassVersion)</Version>
     <PackageId>Scarlet.Sass.Runtime.linux-arm64-musl</PackageId>
-    <Description>Sass binary for Linux ARM64 (musl)</Description>
+    <Description>Dart Sass runtime for Linux ARM64 (musl)</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <DevelopmentDependency>True</DevelopmentDependency>
 

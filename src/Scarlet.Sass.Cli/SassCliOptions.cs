@@ -22,7 +22,7 @@ internal sealed class SassCliOptions
     /// <summary>Name of the variable overriding the cache root.</summary>
     public const string CacheVariable = "SCARLET_SASS_CACHE_DIR";
 
-    /// <summary>Name of the variable that suppresses use of the embedded binary.</summary>
+    /// <summary>Name of the variable that suppresses use of the embedded runtime.</summary>
     public const string NoEmbeddedVariable = "SCARLET_SASS_NO_EMBEDDED";
 
     /// <summary>Name of the variable that disables the reserved diagnostic flag entirely.</summary>
@@ -86,7 +86,7 @@ internal sealed class SassCliOptions
     /// <summary>Root directory for downloaded Sass runtimes.</summary>
     public string CacheRoot { get; }
 
-    /// <summary>Whether the binary embedded in the package should be ignored.</summary>
+    /// <summary>Whether the runtime embedded in the package should be ignored.</summary>
     public bool IgnoreEmbedded { get; }
 
     /// <summary>Whether the reserved diagnostic flag is disabled, making argument forwarding absolute.</summary>
