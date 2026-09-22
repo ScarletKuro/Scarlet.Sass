@@ -103,6 +103,7 @@ public class SassCliSmokeTests
         var options = Options();
         var cachedPath = SassRuntimeResolver.GetExecutablePath(options.RuntimeDirectory, Platform.LinuxX64);
         fileSystem.AddFile(cachedPath, new MockFileData("cached"));
+        fileSystem.AddFile(DartPathForSass(cachedPath), new MockFileData("dart"));
 
         var chmod = new RecordingChmodProvider();
         var resolver = CreateResolver(fileSystem, chmod);
@@ -111,7 +112,25 @@ public class SassCliSmokeTests
 
         Assert.Equal(SassSource.Cache, resolution.Source);
         Assert.Equal(cachedPath, resolution.ExecutablePath);
-        Assert.Equal(new[] { cachedPath }, chmod.Paths);
+        Assert.Equal(new[] { cachedPath, DartPathForSass(cachedPath) }, chmod.Paths);
+    }
+
+    [Fact]
+    public void Resolver_UsesEmbeddedRuntime_ShouldMakeLauncherAndDartExecutable()
+    {
+        var fileSystem = new MockFileSystem();
+        var embeddedPath = EmbeddedPath();
+        fileSystem.AddFile(embeddedPath, new MockFileData("embedded"));
+        fileSystem.AddFile(DartPathForSass(embeddedPath), new MockFileData("dart"));
+
+        var chmod = new RecordingChmodProvider();
+        var resolver = CreateResolver(fileSystem, chmod);
+
+        var resolution = resolver.Resolve(Options(), allowDownload: true, new NoOpLogger());
+
+        Assert.Equal(SassSource.Embedded, resolution.Source);
+        Assert.Equal(embeddedPath, resolution.ExecutablePath);
+        Assert.Equal(new[] { embeddedPath, DartPathForSass(embeddedPath) }, chmod.Paths);
     }
 
     [Fact]
@@ -175,6 +194,8 @@ public class SassCliSmokeTests
     }
 
     private static string EmbeddedPath() => Path.Combine(ToolDirectory, "dart-sass", "sass");
+
+    private static string DartPathForSass(string sassPath) => Path.Combine(Path.GetDirectoryName(sassPath)!, "src", "dart");
 
     private sealed class NoOpLogger : ISassLogger
     {

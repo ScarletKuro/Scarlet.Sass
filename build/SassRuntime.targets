@@ -18,6 +18,7 @@
           SkipUnchangedFiles="true" />
 
     <Exec Condition="$([MSBuild]::IsOsUnixLike()) and Exists('$(RidOutputDir)/sass')" Command="chmod +x '$(RidOutputDir)/sass'" />
+    <Exec Condition="$([MSBuild]::IsOsUnixLike()) and Exists('$(RidOutputDir)/src/dart')" Command="chmod +x '$(RidOutputDir)/src/dart'" />
   </Target>
 
   <ItemGroup>

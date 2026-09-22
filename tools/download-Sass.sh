@@ -56,5 +56,8 @@ rm -rf "$OUTPUT_DIRECTORY"
 mkdir -p "$(dirname "$OUTPUT_DIRECTORY")"
 mv "$TMP_EXTRACT/dart-sass" "$OUTPUT_DIRECTORY"
 chmod +x "$EXECUTABLE_PATH" 2>/dev/null || true
+if [ -f "$OUTPUT_DIRECTORY/src/dart" ]; then
+  chmod +x "$OUTPUT_DIRECTORY/src/dart" 2>/dev/null || true
+fi
 echo -n "$SASS_VERSION" > "$VERSION_FILE"
 echo "Dart Sass setup complete at $OUTPUT_DIRECTORY"

@@ -227,7 +227,7 @@ Recommended item metadata:
     <SourceMap>false</SourceMap>
     <EmbedSources>false</EmbedSources>
     <QuietDeps>true</QuietDeps>
-    <SilenceDeprecations>import;global-builtin</SilenceDeprecations>
+    <SilenceDeprecations></SilenceDeprecations>
     <FatalDeprecations></FatalDeprecations>
     <AdditionalArguments></AdditionalArguments>
   </SassBeforeStaticWebAssets>

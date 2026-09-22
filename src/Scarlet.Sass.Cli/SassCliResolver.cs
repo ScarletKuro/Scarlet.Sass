@@ -90,7 +90,7 @@ internal sealed class SassCliResolver
         {
             // Mandatory, not defensive: NuGet packages carry no Unix permission bits, so on Linux and macOS
             // the embedded binary is extracted 0644 and would fail with EACCES on the very first run.
-            _chmodProvider.EnsureExecutablePermissions(embeddedPath);
+            SassRuntimeResolver.EnsureExecutablePermissions(_fileSystem, _chmodProvider, embeddedPath, _platform);
 
             return Build(embeddedPath, SassSource.Embedded);
         }
@@ -100,7 +100,7 @@ internal sealed class SassCliResolver
         var cachedPath = SassRuntimeResolver.GetExecutablePath(options.RuntimeDirectory, _platform);
         if (_fileSystem.File.Exists(cachedPath))
         {
-            _chmodProvider.EnsureExecutablePermissions(cachedPath);
+            SassRuntimeResolver.EnsureExecutablePermissions(_fileSystem, _chmodProvider, cachedPath, _platform);
 
             return Build(cachedPath, SassSource.Cache);
         }

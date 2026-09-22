@@ -59,7 +59,7 @@ public sealed class SassDownloader
         if (hasExplicitVersion && IsCacheValidForVersion(executablePath, versionMarkerPath, version!))
         {
             _log.LogMessage($"Dart Sass {version} is already cached at {executablePath}. Skipping download.");
-            _chmodProvider.EnsureExecutablePermissions(executablePath);
+            EnsureExecutablePermissions(executablePath);
             return executablePath;
         }
 
@@ -93,7 +93,7 @@ public sealed class SassDownloader
             if (hasExplicitVersion && IsCacheValidForVersion(executablePath, versionMarkerPath, version!))
             {
                 _log.LogMessage($"Dart Sass {version} was downloaded by another process while waiting. Skipping download.");
-                _chmodProvider.EnsureExecutablePermissions(executablePath);
+                EnsureExecutablePermissions(executablePath);
                 return executablePath;
             }
 
@@ -143,7 +143,7 @@ public sealed class SassDownloader
             throw new FileNotFoundException($"Dart Sass executable was not found after extraction at expected path: {executablePath}");
         }
 
-        _chmodProvider.EnsureExecutablePermissions(executablePath);
+        EnsureExecutablePermissions(executablePath);
         WriteVersionMarker(versionMarkerPath, version);
         return executablePath;
     }
@@ -158,7 +158,7 @@ public sealed class SassDownloader
         if (resolvedVersion is not null && IsCacheValidForVersion(executablePath, versionMarkerPath, resolvedVersion))
         {
             _log.LogMessage($"Dart Sass 'latest' still resolves to {resolvedVersion}, which is already cached at {executablePath}. Skipping download.");
-            _chmodProvider.EnsureExecutablePermissions(executablePath);
+            EnsureExecutablePermissions(executablePath);
             return executablePath;
         }
 
@@ -176,6 +176,11 @@ public sealed class SassDownloader
         var platformName = SassRuntimeResolver.GetDownloadName(_platform);
         var extension = _platform is Platform.WindowsX64 or Platform.WindowsArm64 ? "zip" : "tar.gz";
         return $"dart-sass-{version}-{platformName}.{extension}";
+    }
+
+    private void EnsureExecutablePermissions(string executablePath)
+    {
+        SassRuntimeResolver.EnsureExecutablePermissions(_fileSystem, _chmodProvider, executablePath, _platform);
     }
 
     private async Task DownloadAndExtractAsync(string downloadUrl, string fullRuntimePath, string archiveName)

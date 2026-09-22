@@ -505,9 +505,18 @@ public sealed class SassCompileTask : Task
 
     private static string ResolvePath(string baseDirectory, string path)
     {
-        return Path.IsPathRooted(path)
-            ? Path.GetFullPath(path)
-            : Path.GetFullPath(Path.Combine(baseDirectory, path));
+        var normalizedPath = NormalizePathSeparators(path);
+
+        return Path.IsPathRooted(normalizedPath)
+            ? Path.GetFullPath(normalizedPath)
+            : Path.GetFullPath(Path.Combine(baseDirectory, normalizedPath));
+    }
+
+    private static string NormalizePathSeparators(string path)
+    {
+        return Path.DirectorySeparatorChar == '\\'
+            ? path.Replace('/', Path.DirectorySeparatorChar)
+            : path.Replace('\\', Path.DirectorySeparatorChar);
     }
 
     private ITaskItem CreateGeneratedFileItem(string path)

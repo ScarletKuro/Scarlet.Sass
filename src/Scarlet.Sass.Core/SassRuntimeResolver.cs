@@ -251,6 +251,50 @@ public static class SassRuntimeResolver
     }
 
     /// <summary>
+    /// Gets the files in a Dart Sass bundle that must be executable on Unix-like hosts.
+    /// </summary>
+    /// <param name="sassExecutablePath">Path to the public Sass launcher.</param>
+    /// <param name="platform">The platform the bundle targets.</param>
+    /// <returns>The launcher, plus the internal Dart VM on Linux and macOS.</returns>
+    public static IReadOnlyList<string> GetExecutablePermissionPaths(string sassExecutablePath, Platform platform)
+    {
+        if (platform is Platform.WindowsX64 or Platform.WindowsArm64)
+        {
+            return new[] { sassExecutablePath };
+        }
+
+        var directory = Path.GetDirectoryName(sassExecutablePath);
+        if (string.IsNullOrEmpty(directory))
+        {
+            return new[] { sassExecutablePath };
+        }
+
+        return new[]
+        {
+            sassExecutablePath,
+            Path.Combine(directory, "src", "dart")
+        };
+    }
+
+    /// <summary>
+    /// Applies executable permissions to the files that exist in a Dart Sass bundle.
+    /// </summary>
+    public static void EnsureExecutablePermissions(
+        IFileSystem fileSystem,
+        IChmodProvider chmodProvider,
+        string sassExecutablePath,
+        Platform platform)
+    {
+        foreach (var path in GetExecutablePermissionPaths(sassExecutablePath, platform))
+        {
+            if (fileSystem.File.Exists(path))
+            {
+                chmodProvider.EnsureExecutablePermissions(path);
+            }
+        }
+    }
+
+    /// <summary>
     /// Selects the runtime packs that can serve the given platform, best candidate first.
     /// </summary>
     /// <param name="packs">All packs contributed to the build. May be <see langword="null"/>.</param>
@@ -336,7 +380,7 @@ public static class SassRuntimeResolver
                     log?.Invoke($"Using Sass runtime pack {candidate}.");
                 }
 
-                chmodProvider.EnsureExecutablePermissions(candidatePath);
+                EnsureExecutablePermissions(fileSystem, chmodProvider, candidatePath, platform);
 
                 return candidatePath;
             }
@@ -371,7 +415,7 @@ public static class SassRuntimeResolver
                 $"contains '{GetRuntimeIdentifier(platform)}/native/{GetInfo(platform).DirectoryName}/{GetExecutableName(platform)}'.");
         }
 
-        chmodProvider.EnsureExecutablePermissions(SassPath);
+        EnsureExecutablePermissions(fileSystem, chmodProvider, SassPath, platform);
 
         return SassPath;
     }

@@ -29,6 +29,22 @@ public class SassContractTests
     }
 
     [Fact]
+    public void UnixDartSassBundle_RequiresLauncherAndInnerDartToBeExecutable()
+    {
+        var sassPath = Path.Combine("runtimes", "linux-x64", "native", "dart-sass", "sass");
+
+        var paths = SassRuntimeResolver.GetExecutablePermissionPaths(sassPath, Platform.LinuxX64);
+
+        Assert.Equal(
+            new[]
+            {
+                sassPath,
+                Path.Combine("runtimes", "linux-x64", "native", "dart-sass", "src", "dart")
+            },
+            paths);
+    }
+
+    [Fact]
     public void GetPlatform_DetectsMuslSeparatelyFromGlibc()
     {
         Assert.Equal(Platform.LinuxX64, SassRuntimeResolver.GetPlatform(OSPlatform.Linux, Architecture.X64, isMuslLibc: false, "Linux"));

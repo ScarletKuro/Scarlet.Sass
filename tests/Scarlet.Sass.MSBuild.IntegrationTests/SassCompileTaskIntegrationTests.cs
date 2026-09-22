@@ -33,7 +33,7 @@ public class SassCompileTaskIntegrationTests
             """);
 
         var item = new TaskItem("Sass");
-        item.SetMetadata("OutputPath", "wwwroot/css");
+        item.SetMetadata("OutputPath", @"wwwroot\css");
         item.SetMetadata("OutputStyle", "Expanded");
         item.SetMetadata("SourceMap", "true");
 
