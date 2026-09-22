@@ -14,12 +14,12 @@ or run the official Dart Sass CLI with `dotnet sass`, on Windows, Linux and macO
 
 | | Package | Use it when |
 |---|---|---|
-| **During a build** | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.MSBuild?color=ff4081&label=Scarlet.Sass.MSBuild&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.MSBuild/) | You want `dotnet build` to compile Sass into static web assets - Blazor, Razor Class Libraries, ASP.NET Core |
+| **During a build** | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.MSBuild?color=ff4081&label=Scarlet.Sass.MSBuild&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.MSBuild/) | You want `dotnet build` to compile Sass into static web assets — Blazor, Razor Class Libraries, ASP.NET Core |
 | **On the command line** | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.Cli?color=ff4081&label=Scarlet.Sass.Cli&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.Cli/) | You want `dotnet sass ...`, pinned per repository |
 
-They are independent - use either, or both.
+They are independent — use either, or both.
 
-### Scarlet.Sass.MSBuild - Sass during `dotnet build`
+### Scarlet.Sass.MSBuild — Sass during `dotnet build`
 
 ```bash
 dotnet add package Scarlet.Sass.MSBuild
@@ -38,11 +38,11 @@ dotnet add package Scarlet.Sass.Runtime.windows-x64
 The Dart Sass runtime comes either from a platform-specific `Scarlet.Sass.Runtime.*` package or from an
 on-demand download, whichever suits your build.
 
-Full documentation: [Scarlet.Sass.MSBuild](src/Scarlet.Sass.MSBuild/README.md) - installation, runtime
-options, task properties, item metadata, multi-targeting, static web assets, incrementality, and the
-Embedded Sass Protocol decision.
+📖 **[Full documentation →](src/Scarlet.Sass.MSBuild/README.md)** — installation, the runtime options,
+task properties, item metadata, multi-targeting, static web assets, incrementality, and the Embedded Sass
+Protocol decision.
 
-### Scarlet.Sass.Cli - Sass on the command line
+### Scarlet.Sass.Cli — Sass on the command line
 
 ```bash
 dotnet new tool-manifest
@@ -55,8 +55,8 @@ your tooling. `Scarlet.Sass.Cli` is a pointer package; installing it also pulls 
 `Scarlet.Sass.Cli.*` sub-package for your platform, and that one embeds Dart Sass, so it needs no network
 at run time.
 
-Full documentation: [Scarlet.Sass.Cli](src/Scarlet.Sass.Cli/README.md) - installing, argument forwarding,
-runtime resolution, diagnostics, and environment variables.
+📖 **[Full documentation →](src/Scarlet.Sass.Cli/README.md)** — installing, argument forwarding, runtime
+resolution, diagnostics, and environment variables.
 
 ## Available Packages
 
@@ -78,27 +78,21 @@ directly (see its README); the CLI embeds its own Dart Sass and does not use the
 is the Dart Sass version they contain.
 
 `Scarlet.Sass.Cli` restores its own per-platform `Scarlet.Sass.Cli.*` sub-packages (one per RID, plus a
-portable `.any` fallback) automatically - unlike the `Runtime.*` packages, these are a `dotnet tool`
+portable `.any` fallback) automatically — unlike the `Runtime.*` packages, these are a `dotnet tool`
 implementation detail, never meant to be installed directly, so they aren't listed here.
 
 ## Supported Platforms
 
 Windows, Linux and macOS on **x64 or arm64**, including musl-based Linux distributions such as Alpine. Any
-other architecture gets an explanatory error rather than a mismatched binary - point at your own Sass with
+other architecture gets an explanatory error rather than a mismatched binary — point at your own Sass with
 `SCARLET_SASS_PATH` (CLI) or `SassRuntimeDirectory` (MSBuild) if you need one of them.
-
-## Configuration
-
-Scarlet.Sass intentionally does not define `sasscompiler.json`, `appsettings.json`, or any other
-Scarlet-specific JSON configuration convention. Use Dart Sass CLI arguments, MSBuild properties, or
-`SassBeforeStaticWebAssets` item metadata instead.
 
 ## Development
 
 ### Building the Package
 
 ```bash
-dotnet build Scarlet.Sass.MSBuild.slnx
+dotnet build
 ```
 
 ### Running Tests
@@ -120,7 +114,7 @@ dotnet test tests/Scarlet.Sass.Cli.Tests/Scarlet.Sass.Cli.Tests.csproj
 
 All tests:
 ```bash
-dotnet test Scarlet.Sass.MSBuild.slnx
+dotnet test
 ```
 
 End-to-end scenarios pack real packages into a local feed and consume them from a temporary project. They
@@ -136,7 +130,7 @@ tests/e2e/cli-tool/verify.sh            "$PWD" 1.104.1-local 1.104.1
 dotnet pack src/Scarlet.Sass.MSBuild/Scarlet.Sass.MSBuild.csproj
 ```
 
-The CLI packs into ten packages at once - one per runtime identifier, a portable fallback and a
+The CLI packs into ten packages at once — one per runtime identifier, a portable fallback and a
 top-level pointer package:
 ```bash
 dotnet pack src/Scarlet.Sass.Cli/Scarlet.Sass.Cli.csproj
