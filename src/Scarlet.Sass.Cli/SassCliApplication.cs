@@ -13,7 +13,7 @@ internal sealed class SassCliApplication
     /// <remarks>
     /// Honoured only as the first argument, and only when <c>SCARLET_SASS_PASSTHROUGH</c> is unset. Sass would
     /// never ship a flag carrying a third party's brand, and restricting it to position 0 means
-    /// <c>Sass run build --scarlet-info</c> still reaches Sass. The environment variable is a permanent
+    /// <c>sass --watch --scarlet-info</c> still reaches Sass. The environment variable is a permanent
     /// opt-out should that reasoning ever fail.
     /// </remarks>
     public const string InfoFlag = "--scarlet-info";

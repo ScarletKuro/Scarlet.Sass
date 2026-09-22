@@ -5,7 +5,7 @@ public class ConsoleSassLoggerTests
     [Fact]
     public void LogMessage_ShouldPrefixAndWriteToTheGivenWriter()
     {
-        // Arrange - stderr, never stdout: `dotnet Sass ... | jq` must not receive the tool's own chatter
+        // Arrange - stderr, never stdout: `dotnet sass ... | jq` must not receive the tool's own chatter
         var stderr = new StringWriter();
         var logger = new ConsoleSassLogger(stderr);
 

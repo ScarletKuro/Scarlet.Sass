@@ -101,7 +101,7 @@ public class DiagnosticsReportTests
     public void ToText_WithNothingSet_ShouldSayUnset()
     {
         // Arrange - a genuinely empty environment, rather than CreateOptions()'s default, which pins
-        // SCARLET_Sass_CACHE so unrelated tests don't depend on the host's filesystem layout
+        // SCARLET_SASS_CACHE so unrelated tests don't depend on the host's filesystem layout
         var options = SassCliOptions.FromEnvironment(new FakeEnvironmentProvider(), "1.4.2");
 
         // Act
@@ -183,7 +183,7 @@ public class DiagnosticsReportTests
     public void ToJson_WithNothingSet_ShouldNullTheStringOverridesRatherThanTheResolvedDefault()
     {
         // Arrange - a genuinely empty environment, rather than CreateOptions()'s default, which pins
-        // SCARLET_Sass_CACHE so unrelated tests don't depend on the host's filesystem layout
+        // SCARLET_SASS_CACHE so unrelated tests don't depend on the host's filesystem layout
         var options = SassCliOptions.FromEnvironment(new FakeEnvironmentProvider(), "1.4.2");
 
         // Act

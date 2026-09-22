@@ -8,8 +8,8 @@ namespace Scarlet.Sass.MSBuild.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This exists because of a bug that shipped silently: <c>tools/download-Sass.ps1</c> and
-/// <c>download-Sass.sh</c> used to extract the archive into the project directory and then search that same
+/// This exists because of a bug that shipped silently: <c>tools/download-sass.ps1</c> and
+/// <c>download-sass.sh</c> used to extract the archive into the project directory and then search that same
 /// directory for the executable. The search found the <em>existing</em> binary before the freshly extracted
 /// one, concluded it was already in place, skipped the move - and still wrote the version marker. Every
 /// version bump after the first download therefore kept the old binary and relabelled it, so

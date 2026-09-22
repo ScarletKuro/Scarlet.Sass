@@ -4,7 +4,7 @@ using System.IO.Compression;
 namespace Scarlet.Sass.Cli.Tests.Mock;
 
 /// <summary>
-/// An in-memory Sass archive, so the download path can be exercised without a network or a real zip.
+/// An in-memory Dart Sass archive, so the download path can be exercised without a network or a real zip.
 /// </summary>
 /// <remarks>
 /// The real <c>SassDownloader</c> only reaches <see cref="IZipArchiveProvider"/> for Windows platforms;

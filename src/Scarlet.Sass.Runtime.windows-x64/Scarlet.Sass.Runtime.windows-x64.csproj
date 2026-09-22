@@ -53,8 +53,8 @@
   <Target Name="DownloadSassIfMissing" BeforeTargets="Build">
     <PropertyGroup>
       <!-- Paths to helper scripts -->
-      <SassDownloadScriptPathPwsh>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..\tools\download-Sass.ps1'))</SassDownloadScriptPathPwsh>
-      <SassDownloadScriptPathBash>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../tools/download-Sass.sh'))</SassDownloadScriptPathBash>
+      <SassDownloadScriptPathPwsh>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..\tools\download-sass.ps1'))</SassDownloadScriptPathPwsh>
+      <SassDownloadScriptPathBash>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../tools/download-sass.sh'))</SassDownloadScriptPathBash>
       <SassOutputDirectory>$(MSBuildThisFileDirectory)dart-sass</SassOutputDirectory>
       <SassDownloadFilename>dart-sass-$(SassVersion)-windows-x64.zip</SassDownloadFilename>
     </PropertyGroup>

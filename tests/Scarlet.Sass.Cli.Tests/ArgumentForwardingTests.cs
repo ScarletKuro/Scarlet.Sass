@@ -7,7 +7,7 @@ namespace Scarlet.Sass.Cli.Tests;
 /// The contract that matters most: every argument reaches Sass unchanged, in order.
 /// </summary>
 /// <remarks>
-/// <c>dotnet Sass --version</c> has to print Sass's version, not the tool's, and a flag Sass adds tomorrow has
+/// <c>dotnet sass --version</c> has to print Sass's version, not the tool's, and a flag Sass adds tomorrow has
 /// to work without a release of this package. Anything that parses, reorders, trims or re-quotes arguments
 /// breaks that.
 /// </remarks>

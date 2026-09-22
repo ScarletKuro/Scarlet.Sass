@@ -69,7 +69,7 @@ anything.
 ## Reporting Bugs / Requesting Features
 
 Open a [GitHub issue](https://github.com/ScarletKuro/Scarlet.Sass/issues). Include your OS/architecture,
-the `Scarlet.Sass.*` package version(s) involved, and, for build failures, the MSBuild or `dotnet Sass`
+the `Scarlet.Sass.*` package version(s) involved, and, for build failures, the MSBuild or `dotnet sass`
 output.
 
 ## License

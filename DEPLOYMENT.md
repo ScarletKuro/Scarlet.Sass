@@ -15,7 +15,7 @@ The project publishes 19 NuGet packages:
 7. `Scarlet.Sass.Runtime.linux-arm64-musl` - Linux ARM64 runtime, musl (Alpine)
 8. `Scarlet.Sass.Runtime.darwin-x64` - macOS x64 runtime
 9. `Scarlet.Sass.Runtime.darwin-arm64` - macOS ARM64 runtime
-10. `Scarlet.Sass.Cli` - the `dotnet Sass` tool, which is itself **ten** packages: one per runtime
+10. `Scarlet.Sass.Cli` - the `dotnet sass` tool, which is itself **ten** packages: one per runtime
     identifier (eight), a portable `any` fallback, and a top-level pointer package. A single
     `dotnet pack` produces all of them.
 
@@ -55,7 +55,7 @@ Packages are also mirrored to GitHub Packages using the workflow's own `GITHUB_T
 ## Automatic Sass Version Bump
 
 `.github/workflows/Sass-version-bump.yml` runs monthly (and on manual dispatch). It checks the
-latest stable SemVer `oven-sh/Sass` release against `SassVersion` in `Directory.Build.props`; if newer,
+latest stable SemVer `sass/dart-sass` release against `SassVersion` in `Directory.Build.props`; if newer,
 it commits the bump (resetting `SassCliRevision` to 0) directly to `master` and dispatches `deploy.yml`
 with `release_target: runtime-and-cli`. That deploy run still runs the full test matrix first, so a Sass
 release that breaks something here fails the workflow instead of publishing.
@@ -117,7 +117,7 @@ The workflow supports SemVer 2.0 version formats, including:
 
 The deployment workflow (`.github/workflows/deploy.yml`) performs the following steps:
 
-1. **Runs tests on all platforms** (USasstu, Windows, macOS):
+1. **Runs tests on all platforms** (Ubuntu, Windows, macOS):
    - Restores dependencies
    - Builds the solution
    - Runs all tests with code coverage
@@ -152,7 +152,7 @@ The deployment workflow (`.github/workflows/deploy.yml`) performs the following 
    - Executes a test Sass script to confirm everything works
    - Fails the workflow if verification doesn't pass
 
-**Note:** The workflow will only proceed to packaging and deployment if all tests pass on all platforms (USasstu, Windows, macOS). This ensures that only tested and verified code is deployed to NuGet.org.
+**Note:** The workflow will only proceed to packaging and deployment if all tests pass on all platforms (Ubuntu, Windows, macOS). This ensures that only tested and verified code is deployed to NuGet.org.
 
 ## Troubleshooting
 
@@ -181,8 +181,8 @@ The deployment workflow (`.github/workflows/deploy.yml`) performs the following 
 - Check the workflow logs for specific error messages
 - The verification step tests that:
   - Packages can be installed from local source
-  - SassRunTask can find and execute the Sass runtime
-  - Sass can execute JavaScript files successfully
+  - SassCompileTask can find and execute the Sass runtime
+  - Sass can compile real stylesheet inputs successfully
 
 ## Manual Deployment
 

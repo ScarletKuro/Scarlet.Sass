@@ -1,26 +1,8 @@
 # AI Agent Resources
 
-This directory contains resources for AI agents working on the Scarlet.Sass.MSBuild project.
+This directory contains local reference material for AI agents working on the Scarlet.Sass.MSBuild project.
 
 ## Files
-
-### Sass-llms-full.txt
-
-Complete Sass documentation for Large Language Models, sourced from https://Sass.com/llms-full.txt
-
-This comprehensive documentation includes:
-- Complete API reference for all Sass commands and features
-- Usage examples and best practices
-- Performance characteristics and optimization techniques
-- Platform-specific behavior and compatibility notes
-- Build, Sassdler, test runner, and runtime capabilities
-
-**Usage:** AI agents should consult this documentation before:
-- Implementing or modifying any Sass command execution
-- Adding new Sass features or capabilities to the MSBuild task
-- Troubleshooting Sass-related issues or errors
-- Optimizing Sass command parameters or flags
-- Updating integration tests that use Sass commands
 
 ### msbuild-llms-full.txt
 
@@ -52,14 +34,6 @@ Comprehensive MSBuild documentation for Large Language Models, covering:
 - Dependency injection and IFileSystem abstraction
 
 ## Updating Documentation
-
-### Sass Documentation
-
-To update the Sass documentation to the latest version:
-
-```bash
-curl -L "https://Sass.com/llms-full.txt" -o .github/agents/Sass-llms-full.txt
-```
 
 ### MSBuild Documentation
 

@@ -7,7 +7,7 @@ Scope: MSBuild and CLI integration for Dart Sass in .NET projects
 ## Summary
 
 `Scarlet.Sass` should provide pinned Dart Sass execution for .NET builds and repository-local command
-line use, with the same build correctness priorities as `Scarlet.Sass`: multi-targeting, Razor Class
+line use, with the same build correctness priorities as `Scarlet.Bun`: multi-targeting, Razor Class
 Library support, static web assets, deterministic runtime resolution, strong tests, and clear diagnostics.
 
 The package should not start as a general .NET Sass host library. It should not register ASP.NET Core
@@ -65,7 +65,7 @@ Optional later package:
 | --- | --- |
 | `Scarlet.Sass.Embedded` | Experimental or advanced Embedded Sass Protocol host implementation |
 
-The runtime package split should follow the `Scarlet.Sass.Runtime.*` model: the build host decides which
+The runtime package split should follow the `Scarlet.Bun.Runtime.*` model: the build host decides which
 runtime is needed. The project's target RID is not the right source of truth because Sass runs on the build
 host, not on the target deployment platform.
 
@@ -102,7 +102,7 @@ should hide that detail behind per-platform metadata.
 
 ## MSBuild API
 
-The primary build item should mirror `Scarlet.Sass` naming for the static web assets scenario:
+The primary build item should mirror `Scarlet.Bun` naming for the static web assets scenario:
 `SassBeforeStaticWebAssets`.
 
 That name is intentionally specific. Most users want Sass output to become Blazor/Razor static web assets,
@@ -111,8 +111,8 @@ still exist for explicit task calls, but the documented path should be `SassBefo
 
 ### Minimal Usage
 
-If a project contains a `Sass/` directory, `Scarlet.Sass.MSBuild` may compile all non-partial Sass entry
-points from `Sass/` into `wwwroot/css/` by default.
+There should be no implicit `Sass/` folder convention in v1. Consumers should opt in with explicit
+`@(SassBeforeStaticWebAssets)` items so the build graph is visible and testable.
 
 ```xml
 <ItemGroup>
@@ -180,7 +180,7 @@ The task should prefer one Dart Sass process per build target invocation, not on
 
 Recommended properties:
 
-Public MSBuild properties should use the `Sass*` prefix for consistency with `Scarlet.Sass` properties such
+Public MSBuild properties should use the `Sass*` prefix for consistency with `Scarlet.Bun` properties such
 as `SassRuntimeDownload` and `SassVersionDownload`. Environment variables should keep the more explicit
 `SCARLET_SASS_*` prefix to avoid collisions with other Sass tooling.
 
@@ -239,7 +239,7 @@ Metadata overrides global properties for that item.
 ## Load Paths
 
 `LoadPaths` are a Sass primitive, exposed by Dart Sass as `--load-path` or `-I`. They are not a Scarlet
-invention and are not equivalent to anything in `Scarlet.Sass`.
+invention and are not equivalent to anything in `Scarlet.Bun`.
 
 Sass uses load paths to resolve `@use`, `@forward`, and legacy `@import` references that are not relative
 to the current file.
@@ -265,8 +265,8 @@ node_modules/bootstrap/scss/bootstrap.scss
 ```
 
 `LoadPaths` should be included because many Sass projects rely on them, especially Bootstrap-style setups.
-They should not be confused with JavaScript module resolution, which is handled by Sass/Node/package tools in
-`Scarlet.Sass`.
+They should not be confused with JavaScript module resolution, which is handled by Bun/Node/package tools in
+`Scarlet.Bun`.
 
 ## Node Package Importer
 
@@ -296,7 +296,7 @@ Or per item:
 ## Static Web Assets
 
 The main target should be named `RunSassBeforeStaticWebAssets`, matching the existing
-`RunSassBeforeStaticWebAssets` pattern. It should run when `@(SassBeforeStaticWebAssets)` is present:
+`BunBeforeStaticWebAssets` idea from Scarlet.Bun. It should run when `@(SassBeforeStaticWebAssets)` is present:
 
 ```xml
 <Target Name="RunSassBeforeStaticWebAssets"
@@ -360,7 +360,7 @@ property.
 
 Use a hybrid incremental strategy.
 
-Unlike `Scarlet.Sass`, Sass is not an opaque command. Dart Sass has native incremental behavior through
+Unlike `Scarlet.Bun`, Dart Sass is not an opaque general command. Dart Sass has native incremental behavior through
 `--update`: it compiles only stylesheets whose dependencies are newer than the corresponding generated CSS
 file. Scarlet.Sass should use that instead of rebuilding Sass dependency tracking from scratch.
 
@@ -406,8 +406,8 @@ one-file transforms, but Sass has partials, load paths, directory-to-directory c
 stale outputs, and generated `@(Content)` items. A target-level up-to-date check would either be too coarse
 or would duplicate Dart Sass's dependency tracking badly.
 
-The result should be simpler than `SassBeforeStaticWebAssets`: Sass needs Scarlet-managed incrementality
-because Sass commands are arbitrary. Sass should delegate stylesheet dependency freshness to Dart Sass and
+The result should be simpler than `BunBeforeStaticWebAssets`: Bun needs Scarlet-managed incrementality
+because Bun commands are arbitrary. Sass should delegate stylesheet dependency freshness to Dart Sass and
 keep Scarlet's incremental layer focused on the .NET build system contract.
 
 ## Cleaning
@@ -717,12 +717,6 @@ Task implementation rules:
     <SassQuietDeps Condition="'$(SassQuietDeps)' == ''">false</SassQuietDeps>
   </PropertyGroup>
 
-  <ItemGroup Condition="'@(SassBeforeStaticWebAssets)' == '' AND Exists('$(MSBuildProjectDirectory)\Sass')">
-    <SassBeforeStaticWebAssets Include="$(MSBuildProjectDirectory)\Sass">
-      <OutputPath>$(MSBuildProjectDirectory)\wwwroot\css</OutputPath>
-    </SassBeforeStaticWebAssets>
-  </ItemGroup>
-
   <Target Name="RunSassBeforeStaticWebAssets"
           BeforeTargets="DispatchToInnerBuilds;ResolveProjectStaticWebAssets;PreBuildEvent"
           Condition="'$(SassEnabled)' == 'true'
@@ -753,7 +747,7 @@ Task implementation rules:
     <ItemGroup>
       <Content Remove="@(_SassRemovedFiles)" />
       <None Remove="@(_SassRemovedFiles)" />
-      <_SassGeneratedContent Include="$([System.IO.Path]::GetRelativePath('$(MSBuildProjectDirectory)', '%(_SassGeneratedFiles.Identity)'))" />
+      <_SassGeneratedContent Include="%(_SassGeneratedFiles.RelativePath)" />
       <_SassNewContent Include="@(_SassGeneratedContent)" Exclude="@(Content)" />
       <Content Include="@(_SassNewContent)" CopyToPublishDirectory="PreserveNewest" />
       <FileWrites Include="@(_SassGeneratedFiles)" />
@@ -766,9 +760,9 @@ This sketch is intentionally not final. It shows the shape and the static web as
 
 ## Testing Requirements
 
-Scarlet.Sass should start by borrowing the Scarlet.Sass sample, integration, and e2e structure, then adapt it
+Scarlet.Sass should start by borrowing the Scarlet.Bun sample, integration, and e2e structure, then adapt it
 to Sass-specific behavior. The goal is not merely to have "some tests"; it should have the same kind of
-package-consumer confidence Scarlet.Sass has:
+package-consumer confidence Scarlet.Bun has:
 
 - Samples that demonstrate the documented happy paths.
 - Unit tests for task internals and target/property plumbing.
@@ -777,12 +771,12 @@ package-consumer confidence Scarlet.Sass has:
 
 Every public MSBuild property and item metadata value should have at least one test that would fail if the
 `.targets` file stopped passing it into the task. This is important because many regressions are a single
-missing attribute, for example removing `StampFile="%(_SassBeforeStaticWebAssetsStep.StampFile)"` in
-Scarlet.Sass. Scarlet.Sass should intentionally test that kind of wiring.
+missing attribute, for example removing `StampFile="%(_BunBeforeStaticWebAssetsStep.StampFile)"` in
+Scarlet.Bun. Scarlet.Sass should intentionally test that kind of wiring.
 
 Samples:
 
-- Basic ASP.NET Core or Blazor app compiling `Sass/` into `wwwroot/css`.
+- Basic ASP.NET Core or Blazor app compiling explicit Sass inputs into `wwwroot/css`.
 - Razor Class Library sample where generated CSS is consumed through `_content/<PackageId>/...`.
 - Multi-TFM Razor Class Library sample.
 - Download-on-demand runtime sample.
@@ -875,7 +869,7 @@ E2E tests:
 - CLI forwards arguments exactly, including spaces, quotes, `--`, and non-ASCII.
 - CLI `--scarlet-info` reports runtime source without downloading.
 
-E2E tests should be similar in count and seriousness to Scarlet.Sass's suite:
+E2E tests should be similar in count and seriousness to Scarlet.Bun's suite:
 
 - `package-installation`: restore from local feed, reference MSBuild and matching runtime package, build a
   fresh consumer project, verify output and runtime pack resolution.
@@ -888,7 +882,7 @@ E2E tests should be similar in count and seriousness to Scarlet.Sass's suite:
 - `cli-tool`: install `Scarlet.Sass.Cli` from local feed, verify argument forwarding and diagnostics.
 - CSS isolation e2e, if shipped: generate `.razor.css`, verify Razor scoped CSS output and package behavior.
 
-## Reuse From Scarlet.Sass
+## Reuse From Scarlet.Bun
 
 Reuse:
 
@@ -908,14 +902,14 @@ Adapt:
 
 - Incremental stamp logic should understand generated Sass outputs and maps.
 - Output collection should preserve Sass diagnostics cleanly.
-- Runtime package naming should follow Dart Sass release asset names, not Sass archive names.
+- Runtime package naming should follow Dart Sass release asset names, not Bun archive names.
 
 Do not reuse directly:
 
 - The generic `SassCommand` / `SassArguments` API as the primary MSBuild API.
 - The legacy `SassRuntime_<rid>` property contract.
 - JavaScript package install/build assumptions.
-- Sass-specific environment variables or diagnostic text.
+- Bun-specific environment variables or diagnostic text.
 
 ## Competitor Analysis
 
@@ -997,7 +991,7 @@ What Scarlet.Sass should not borrow immediately:
 Scarlet.Sass has a strong reason to exist if it focuses on the part the competitors do not fully own:
 
 - MSBuild-first configuration through properties and items.
-- `SassBeforeStaticWebAssets`, mirroring the successful `SassBeforeStaticWebAssets` model.
+- `SassBeforeStaticWebAssets`, mirroring the successful `BunBeforeStaticWebAssets` model.
 - Correct outer-build behavior through `buildMultiTargeting/`.
 - Multi-TFM Razor Class Library tests as a first-class release gate.
 - Static web asset packaging tests, including `dotnet pack --no-build`.
@@ -1019,7 +1013,7 @@ The README should explain:
 - Which package to install for build use.
 - Which runtime package to install for the current build host.
 - How to use download-on-demand mode.
-- How to compile `Sass/` to `wwwroot/css`.
+- How to compile explicit Sass inputs to `wwwroot/css`.
 - How to use `@(SassBeforeStaticWebAssets)`.
 - How to configure output style and source maps.
 - How `LoadPaths` work.
@@ -1032,8 +1026,6 @@ The README should explain:
 
 ## Open Questions
 
-- Should default discovery of `Sass/` be enabled by default, or should all compilations require an explicit
-  `@(SassBeforeStaticWebAssets)` item?
 - Should CSS isolation ship in v1 or v1.1?
 - Should source maps default to enabled in Debug, or should users opt in?
 - Should `node_modules` be a default load path when the directory exists?

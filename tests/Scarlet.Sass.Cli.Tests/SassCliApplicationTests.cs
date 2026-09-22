@@ -66,7 +66,7 @@ public class SassCliApplicationTests
         Assert.Contains("Scarlet.Sass: using Sass at ", stderr.ToString());
         Assert.Contains("Sass", stderr.ToString());
 
-        // Nothing the tool says may reach stdout: `dotnet Sass ... | jq` has to keep working
+        // Nothing the tool says may reach stdout: `dotnet sass ... | jq` has to keep working
         Assert.Equal(string.Empty, stdout.ToString());
     }
 

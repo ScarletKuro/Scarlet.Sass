@@ -6,7 +6,7 @@ namespace Scarlet.Sass.Cli;
 /// Writes the downloader's progress messages to stderr.
 /// </summary>
 /// <remarks>
-/// stderr rather than stdout on purpose: <c>dotnet Sass ... | jq</c> has to keep working, so nothing this
+/// stderr rather than stdout on purpose: <c>dotnet sass ... | jq</c> has to keep working, so nothing this
 /// tool says may ever appear in Sass's output stream.
 /// </remarks>
 internal sealed class ConsoleSassLogger : ISassLogger
