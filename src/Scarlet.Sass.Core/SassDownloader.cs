@@ -32,18 +32,6 @@ public sealed class SassDownloader
         ILatestVersionResolver latestVersionResolver,
         IFileSystem fileSystem,
         IZipArchiveProvider zipProvider,
-        IChmodProvider chmodProvider,
-        Platform platform,
-        ISassLogger log)
-        : this(httpClient, latestVersionResolver, fileSystem, zipProvider, TarArchiveProvider.Instance, chmodProvider, platform, log)
-    {
-    }
-
-    public SassDownloader(
-        HttpClient httpClient,
-        ILatestVersionResolver latestVersionResolver,
-        IFileSystem fileSystem,
-        IZipArchiveProvider zipProvider,
         ITarArchiveProvider tarProvider,
         IChmodProvider chmodProvider,
         Platform platform,

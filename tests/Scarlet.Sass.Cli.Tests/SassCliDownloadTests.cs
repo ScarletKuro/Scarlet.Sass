@@ -128,6 +128,7 @@ public class SassCliDownloadTests
                 new FakeLatestVersionResolver(resolvedLatestVersion),
                 fileSystem,
                 new FakeZipArchiveProvider(fileSystem),
+                TarArchiveProvider.Instance,
                 NoOpChmodProvider.Instance,
                 platform,
                 log));

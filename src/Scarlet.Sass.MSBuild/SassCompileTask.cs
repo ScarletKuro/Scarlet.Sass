@@ -329,6 +329,7 @@ public sealed class SassCompileTask : Task
                 new GitHubLatestVersionResolver(),
                 fileSystem,
                 ZipArchiveProvider.Instance,
+                TarArchiveProvider.Instance,
                 chmodProvider,
                 SassRuntimeResolver.GetCurrentPlatform(),
                 new MsBuildSassLogger(Log));

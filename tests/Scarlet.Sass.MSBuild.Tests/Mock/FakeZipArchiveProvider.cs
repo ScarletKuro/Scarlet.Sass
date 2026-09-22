@@ -13,11 +13,6 @@ public sealed class FakeZipArchiveProvider : IZipArchiveProvider
     {
     }
 
-    /// <param name="entryNames">
-    /// Overrides the archive's entry names, so tests can exercise the "expected executable missing" and
-    /// zip-slip paths without a real network response - <see cref="OpenRead"/> always reads from these
-    /// bytes rather than the file the downloader actually fetched.
-    /// </param>
     public FakeZipArchiveProvider(IFileSystem fileSystem, IEnumerable<string> entryNames)
     {
         _fileSystem = fileSystem;

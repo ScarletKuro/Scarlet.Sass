@@ -106,13 +106,24 @@ public class SassDownloaderTests
                     ("dart-sass/sass", "fake Sass executable"),
                     ("dart-sass/src/dart", "fake dart runtime")));
 
-        var downloader = CreateDownloader(mockFileSystem, mockHttp, platform);
+        var downloader = new SassDownloader(
+            mockHttp.ToHttpClient(),
+            new FakeLatestVersionResolver(null),
+            mockFileSystem,
+            new FakeZipArchiveProvider(mockFileSystem),
+            TarArchiveProvider.Instance,
+            NoOpChmodProvider.Instance,
+            platform,
+            NoOpSassLogger.Instance);
 
         // Act
         downloader.DownloadRuntime(tempDir, "1.4.2");
 
-        // Assert
-        var dartPath = Path.Combine(tempDir, "linux-x64", "native", "dart-sass", "src", "dart");
+        // Assert - GetFullPath matters here: on Windows, Path.Combine("/test-runtime", ...) alone stays a
+        // drive-relative "\test-runtime\..." while the production code normalizes through
+        // ResolveArchiveDestination's own Path.GetFullPath, which resolves "/test-runtime" against the
+        // current drive. Skipping GetFullPath here made this test pass on Linux/macOS CI but fail on Windows.
+        var dartPath = Path.GetFullPath(Path.Combine(tempDir, "linux-x64", "native", "dart-sass", "src", "dart"));
         Assert.Equal("fake dart runtime", mockFileSystem.File.ReadAllText(dartPath));
     }
 
@@ -121,18 +132,26 @@ public class SassDownloaderTests
     {
         // Arrange - ResolveArchiveDestination's zip-slip guard is shared between the zip and tar extraction
         // paths; this proves it also applies when ITarArchiveProvider is what feeds it entry names, not just
-        // the zip path exercised above. Unlike the zip case, no fake provider is needed - WriteTarEntry
-        // writes whatever name it's given straight into the archive, so the malicious entry can travel
-        // through the real download response like a genuine archive would.
+        // the zip path exercised above. Mirrors DownloadRuntime_WithZipEntryEscapingTheDestination_...: the
+        // malicious entry is injected through FakeTarArchiveProvider rather than the mocked HTTP response
+        // body, since the real ITarArchiveProvider is swapped out entirely here.
         var platform = Platform.LinuxX64;
         var tempDir = "/test-runtime";
 
         var mockFileSystem = new MockFileSystem();
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz")
-                .Respond("application/gzip", CreateMockTarGz(("../../evil.txt", "malicious")));
+                .Respond("application/gzip", new MemoryStream(new byte[] { 1, 2, 3 }));
 
-        var downloader = CreateDownloader(mockFileSystem, mockHttp, platform);
+        var downloader = new SassDownloader(
+            mockHttp.ToHttpClient(),
+            new FakeLatestVersionResolver(null),
+            mockFileSystem,
+            new FakeZipArchiveProvider(mockFileSystem),
+            new FakeTarArchiveProvider(new[] { "../../evil.txt" }),
+            NoOpChmodProvider.Instance,
+            platform,
+            NoOpSassLogger.Instance);
 
         // Act & Assert
         var ex = Assert.Throws<InvalidDataException>(() => downloader.DownloadRuntime(tempDir, "1.4.2"));
@@ -142,15 +161,24 @@ public class SassDownloaderTests
     [Fact]
     public void DownloadRuntime_WhenTarArchiveDoesNotContainTheExecutable_ShouldThrowFileNotFoundException()
     {
+        // Mirrors DownloadRuntime_WhenArchiveDoesNotContainTheExecutable_... for the zip path.
         var platform = Platform.LinuxX64;
         var tempDir = "/test-runtime";
 
         var mockFileSystem = new MockFileSystem();
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz")
-                .Respond("application/gzip", CreateMockTarGz(("dart-sass/README.md", "not the executable")));
+                .Respond("application/gzip", new MemoryStream(new byte[] { 1, 2, 3 }));
 
-        var downloader = CreateDownloader(mockFileSystem, mockHttp, platform);
+        var downloader = new SassDownloader(
+            mockHttp.ToHttpClient(),
+            new FakeLatestVersionResolver(null),
+            mockFileSystem,
+            new FakeZipArchiveProvider(mockFileSystem),
+            new FakeTarArchiveProvider(new[] { "dart-sass/README.md" }),
+            NoOpChmodProvider.Instance,
+            platform,
+            NoOpSassLogger.Instance);
 
         // Act & Assert
         Assert.Throws<FileNotFoundException>(() => downloader.DownloadRuntime(tempDir, "1.4.2"));
@@ -199,6 +227,7 @@ public class SassDownloaderTests
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem, new[] { "../../evil.txt" }),
+            new FakeTarArchiveProvider(),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -406,6 +435,7 @@ public class SassDownloaderTests
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem, new[] { "dart-sass/not-sass.bat" }),
+            new FakeTarArchiveProvider(),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -474,6 +504,7 @@ public class SassDownloaderTests
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem),
+            new FakeTarArchiveProvider(),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -512,8 +543,10 @@ public class SassDownloaderTests
             mutexHeldSignal.Set();
             releaseMutexSignal.Wait();
             mutex.ReleaseMutex();
-        });
-        holderThread.IsBackground = true;
+        })
+        {
+            IsBackground = true
+        };
         holderThread.Start();
 
         try
@@ -528,6 +561,7 @@ public class SassDownloaderTests
                 new FakeLatestVersionResolver(null),
                 mockFileSystem,
                 new FakeZipArchiveProvider(mockFileSystem),
+                new FakeTarArchiveProvider(),
                 NoOpChmodProvider.Instance,
                 platform,
                 logger);
@@ -555,6 +589,7 @@ public class SassDownloaderTests
             resolver ?? new FakeLatestVersionResolver(null),
             fileSystem,
             new FakeZipArchiveProvider(fileSystem),
+            new FakeTarArchiveProvider(),
             chmodProvider ?? (IChmodProvider)NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);

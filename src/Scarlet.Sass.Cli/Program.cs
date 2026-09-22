@@ -43,6 +43,7 @@ internal static class Program
                 new GitHubLatestVersionResolver(),
                 fileSystem,
                 ZipArchiveProvider.Instance,
+                TarArchiveProvider.Instance,
                 chmodProvider,
                 targetPlatform,
                 log));
