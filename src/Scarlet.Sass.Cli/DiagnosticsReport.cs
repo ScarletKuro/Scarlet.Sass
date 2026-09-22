@@ -119,7 +119,7 @@ internal static class DiagnosticsReport
 
     private static string BuildDownloadUrl(SassResolution resolution)
     {
-        var archiveExtension = resolution.Platform is Platform.WindowsX64 or Platform.WindowsArm64 ? "zip" : "tar.gz";
+        var archiveExtension = SassRuntimeResolver.GetArchiveExtension(resolution.Platform);
         var archive = $"dart-sass-{resolution.RequestedVersion}-{SassRuntimeResolver.GetDownloadName(resolution.Platform)}.{archiveExtension}";
 
         return string.Equals(resolution.RequestedVersion, SassCliOptions.LatestVersion, StringComparison.OrdinalIgnoreCase)

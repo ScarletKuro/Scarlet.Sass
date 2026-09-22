@@ -24,7 +24,8 @@ public static class SassRuntimeResolver
                 downloadName: "windows-x64",
                 packageName: "Scarlet.Sass.Runtime.windows-x64",
                 launcherName: "sass.bat",
-                dartExecutableName: "dart.exe"
+                dartExecutableName: "dart.exe",
+                archiveExtension: "zip"
             ),
             [Platform.WindowsArm64] = new(
                 rid: "win-arm64",
@@ -32,7 +33,8 @@ public static class SassRuntimeResolver
                 downloadName: "windows-arm64",
                 packageName: "Scarlet.Sass.Runtime.windows-arm64",
                 launcherName: "sass.bat",
-                dartExecutableName: "dart.exe"
+                dartExecutableName: "dart.exe",
+                archiveExtension: "zip"
             ),
             [Platform.LinuxX64] = new(
                 rid: "linux-x64",
@@ -40,7 +42,8 @@ public static class SassRuntimeResolver
                 downloadName: "linux-x64",
                 packageName: "Scarlet.Sass.Runtime.linux-x64",
                 launcherName: "sass",
-                dartExecutableName: "dart"
+                dartExecutableName: "dart",
+                archiveExtension: "tar.gz"
             ),
             [Platform.LinuxArm64] = new(
                 rid: "linux-arm64",
@@ -48,7 +51,8 @@ public static class SassRuntimeResolver
                 downloadName: "linux-arm64",
                 packageName: "Scarlet.Sass.Runtime.linux-arm64",
                 launcherName: "sass",
-                dartExecutableName: "dart"
+                dartExecutableName: "dart",
+                archiveExtension: "tar.gz"
             ),
             [Platform.MacOsX64] = new(
                 rid: "osx-x64",
@@ -56,7 +60,8 @@ public static class SassRuntimeResolver
                 downloadName: "macos-x64",
                 packageName: "Scarlet.Sass.Runtime.darwin-x64",
                 launcherName: "sass",
-                dartExecutableName: "dart"
+                dartExecutableName: "dart",
+                archiveExtension: "tar.gz"
             ),
             [Platform.MacOsArm64] = new(
                 rid: "osx-arm64",
@@ -64,7 +69,8 @@ public static class SassRuntimeResolver
                 downloadName: "macos-arm64",
                 packageName: "Scarlet.Sass.Runtime.darwin-arm64",
                 launcherName: "sass",
-                dartExecutableName: "dart"
+                dartExecutableName: "dart",
+                archiveExtension: "tar.gz"
             ),
             [Platform.LinuxMuslX64] = new(
                 rid: "linux-musl-x64",
@@ -72,7 +78,8 @@ public static class SassRuntimeResolver
                 downloadName: "linux-x64-musl",
                 packageName: "Scarlet.Sass.Runtime.linux-x64-musl",
                 launcherName: "sass",
-                dartExecutableName: "dart"
+                dartExecutableName: "dart",
+                archiveExtension: "tar.gz"
             ),
             [Platform.LinuxMuslArm64] = new(
                 rid: "linux-musl-arm64",
@@ -80,7 +87,8 @@ public static class SassRuntimeResolver
                 downloadName: "linux-arm64-musl",
                 packageName: "Scarlet.Sass.Runtime.linux-arm64-musl",
                 launcherName: "sass",
-                dartExecutableName: "dart"
+                dartExecutableName: "dart",
+                archiveExtension: "tar.gz"
             )
         };
 
@@ -244,6 +252,11 @@ public static class SassRuntimeResolver
     /// Gets the GitHub release download archive name for the specified platform.
     /// </summary>
     public static string GetDownloadName(Platform platform) => GetInfo(platform).DownloadName;
+
+    /// <summary>
+    /// Gets the GitHub release archive extension for the specified platform.
+    /// </summary>
+    public static string GetArchiveExtension(Platform platform) => GetInfo(platform).ArchiveExtension;
 
     /// <summary>
     /// Gets the full path the Sass executable is expected at inside a runtimes directory.

@@ -8,24 +8,26 @@ namespace Scarlet.Sass.MSBuild.Tests;
 public class SassContractTests
 {
     [Theory]
-    [InlineData(Platform.WindowsX64, "win-x64", "windows-x64", "sass.bat", "dart.exe")]
-    [InlineData(Platform.WindowsArm64, "win-arm64", "windows-arm64", "sass.bat", "dart.exe")]
-    [InlineData(Platform.LinuxX64, "linux-x64", "linux-x64", "sass", "dart")]
-    [InlineData(Platform.LinuxArm64, "linux-arm64", "linux-arm64", "sass", "dart")]
-    [InlineData(Platform.LinuxMuslX64, "linux-musl-x64", "linux-x64-musl", "sass", "dart")]
-    [InlineData(Platform.LinuxMuslArm64, "linux-musl-arm64", "linux-arm64-musl", "sass", "dart")]
-    [InlineData(Platform.MacOsX64, "osx-x64", "macos-x64", "sass", "dart")]
-    [InlineData(Platform.MacOsArm64, "osx-arm64", "macos-arm64", "sass", "dart")]
+    [InlineData(Platform.WindowsX64, "win-x64", "windows-x64", "sass.bat", "dart.exe", "zip")]
+    [InlineData(Platform.WindowsArm64, "win-arm64", "windows-arm64", "sass.bat", "dart.exe", "zip")]
+    [InlineData(Platform.LinuxX64, "linux-x64", "linux-x64", "sass", "dart", "tar.gz")]
+    [InlineData(Platform.LinuxArm64, "linux-arm64", "linux-arm64", "sass", "dart", "tar.gz")]
+    [InlineData(Platform.LinuxMuslX64, "linux-musl-x64", "linux-x64-musl", "sass", "dart", "tar.gz")]
+    [InlineData(Platform.LinuxMuslArm64, "linux-musl-arm64", "linux-arm64-musl", "sass", "dart", "tar.gz")]
+    [InlineData(Platform.MacOsX64, "osx-x64", "macos-x64", "sass", "dart", "tar.gz")]
+    [InlineData(Platform.MacOsArm64, "osx-arm64", "macos-arm64", "sass", "dart", "tar.gz")]
     public void PlatformMap_UsesDartSassArchiveAndLayout(
         Platform platform,
         string rid,
         string downloadName,
         string executableName,
-        string dartExecutableName)
+        string dartExecutableName,
+        string archiveExtension)
     {
         Assert.Equal(rid, SassRuntimeResolver.GetRuntimeIdentifier(platform));
         Assert.Equal("dart-sass", SassRuntimeResolver.GetRuntimeDirectoryName(platform));
         Assert.Equal(downloadName, SassRuntimeResolver.GetDownloadName(platform));
+        Assert.Equal(archiveExtension, SassRuntimeResolver.GetArchiveExtension(platform));
         Assert.Equal(executableName, SassRuntimeResolver.GetExecutableName(platform));
 
         var executablePath = SassRuntimeResolver.GetExecutablePath("runtimes", platform);

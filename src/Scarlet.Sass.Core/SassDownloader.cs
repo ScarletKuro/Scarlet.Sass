@@ -177,7 +177,7 @@ public sealed class SassDownloader
     private string GetArchiveName(string version)
     {
         var platformName = SassRuntimeResolver.GetDownloadName(_platform);
-        var extension = _platform is Platform.WindowsX64 or Platform.WindowsArm64 ? "zip" : "tar.gz";
+        var extension = SassRuntimeResolver.GetArchiveExtension(_platform);
         return $"dart-sass-{version}-{platformName}.{extension}";
     }
 

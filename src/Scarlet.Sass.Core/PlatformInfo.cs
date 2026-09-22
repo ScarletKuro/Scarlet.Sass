@@ -8,6 +8,7 @@ public sealed class PlatformInfo
     public string PackageName { get; }
     public string LauncherName { get; }
     public string DartExecutableName { get; }
+    public string ArchiveExtension { get; }
 
     public PlatformInfo(
         string rid,
@@ -15,7 +16,8 @@ public sealed class PlatformInfo
         string downloadName,
         string packageName,
         string launcherName,
-        string dartExecutableName)
+        string dartExecutableName,
+        string archiveExtension)
     {
         Rid = rid;
         DirectoryName = directoryName;
@@ -23,5 +25,6 @@ public sealed class PlatformInfo
         PackageName = packageName;
         LauncherName = launcherName;
         DartExecutableName = dartExecutableName;
+        ArchiveExtension = archiveExtension;
     }
 }
