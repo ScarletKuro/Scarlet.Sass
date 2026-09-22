@@ -12,6 +12,7 @@ Before changing Sass argument rendering, release archive mapping, load paths, `-
 
 Important Sass-specific facts:
 - The runtime packages contain the official `dart-sass` folder.
+- Official bundles should be launched as `dart-sass/src/dart(.exe) dart-sass/src/sass.snapshot`, not through `sass` or `sass.bat`, when that layout is present. The public launcher remains the display/probe path. This avoids wrapper-child timeout and orphan behavior, especially on Windows.
 - Unix launchers need both `dart-sass/sass` and `dart-sass/src/dart` to be executable.
 - The CLI is `sass`; the .NET tool command is `dotnet sass`.
 - Scarlet CLI environment variables use the `SCARLET_SASS_*` prefix.

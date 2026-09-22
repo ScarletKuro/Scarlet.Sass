@@ -288,6 +288,11 @@ public static class SassRuntimeResolver
         var dartPath = Path.Combine(bundleDirectory, "src", GetInfo(platform).DartExecutableName);
         var snapshotPath = Path.Combine(bundleDirectory, "src", "sass.snapshot");
 
+        // Official Dart Sass archives ship a public launcher (`sass` / `sass.bat`) plus the actual Dart
+        // runtime and snapshot under `src/`. When that layout is present, launch Dart directly so the
+        // process we track is the compiler itself. This avoids wrapper-child timeout/orphan behavior on
+        // Windows, where `sass.bat` starts `dart.exe`, while still keeping the launcher path for
+        // diagnostics and for custom fallback layouts.
         return fileSystem.File.Exists(dartPath) && fileSystem.File.Exists(snapshotPath)
             ? new SassLaunchCommand(dartPath, new[] { snapshotPath }, sassExecutablePath)
             : SassLaunchCommand.FromExecutablePath(sassExecutablePath);
