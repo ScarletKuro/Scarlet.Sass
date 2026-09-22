@@ -23,6 +23,7 @@ public sealed class SassDownloader
     private readonly IFileSystem _fileSystem;
     private readonly IChmodProvider _chmodProvider;
     private readonly IZipArchiveProvider _zipProvider;
+    private readonly ITarArchiveProvider _tarProvider;
     private readonly ISassLogger _log;
     private readonly ILatestVersionResolver _latestVersionResolver;
 
@@ -34,11 +35,25 @@ public sealed class SassDownloader
         IChmodProvider chmodProvider,
         Platform platform,
         ISassLogger log)
+        : this(httpClient, latestVersionResolver, fileSystem, zipProvider, TarArchiveProvider.Instance, chmodProvider, platform, log)
+    {
+    }
+
+    public SassDownloader(
+        HttpClient httpClient,
+        ILatestVersionResolver latestVersionResolver,
+        IFileSystem fileSystem,
+        IZipArchiveProvider zipProvider,
+        ITarArchiveProvider tarProvider,
+        IChmodProvider chmodProvider,
+        Platform platform,
+        ISassLogger log)
     {
         _platform = platform;
         _httpClient = httpClient;
         _fileSystem = fileSystem;
         _zipProvider = zipProvider;
+        _tarProvider = tarProvider;
         _chmodProvider = chmodProvider;
         _log = log;
         _latestVersionResolver = latestVersionResolver;
@@ -240,35 +255,12 @@ public sealed class SassDownloader
     {
         using var file = _fileSystem.File.OpenRead(archivePath);
         using var gzip = new GZipStream(file, CompressionMode.Decompress);
-        ExtractTar(gzip, destinationDirectory);
-    }
 
-    private void ExtractTar(Stream stream, string destinationDirectory)
-    {
-        var header = new byte[512];
-
-        while (true)
+        foreach (var entry in _tarProvider.ReadEntries(gzip))
         {
-            ReadExactly(stream, header, 0, header.Length);
-            if (IsAllZero(header))
-            {
-                break;
-            }
+            var destinationPath = ResolveArchiveDestination(destinationDirectory, entry.Name);
 
-            var name = ReadNullTerminatedAscii(header, 0, 100);
-            var sizeText = ReadNullTerminatedAscii(header, 124, 12).Trim();
-            var typeFlag = (char)header[156];
-            var size = string.IsNullOrWhiteSpace(sizeText) ? 0 : Convert.ToInt64(sizeText, 8);
-
-            if (string.IsNullOrEmpty(name))
-            {
-                SkipEntry(stream, size);
-                continue;
-            }
-
-            var destinationPath = ResolveArchiveDestination(destinationDirectory, name);
-
-            if (typeFlag == '5')
+            if (entry.IsDirectory)
             {
                 _fileSystem.Directory.CreateDirectory(destinationPath);
                 continue;
@@ -280,12 +272,8 @@ public sealed class SassDownloader
                 _fileSystem.Directory.CreateDirectory(directory);
             }
 
-            using (var output = _fileSystem.File.Create(destinationPath))
-            {
-                CopyExactly(stream, output, size);
-            }
-
-            SkipPadding(stream, size);
+            using var output = _fileSystem.File.Create(destinationPath);
+            output.Write(entry.Content, 0, entry.Content.Length);
         }
     }
 
@@ -342,94 +330,6 @@ public sealed class SassDownloader
         if (_fileSystem.Directory.Exists(path))
         {
             _fileSystem.Directory.Delete(path, recursive: true);
-        }
-    }
-
-    private static void ReadExactly(Stream stream, byte[] buffer, int offset, int count)
-    {
-        var read = 0;
-        while (read < count)
-        {
-            var n = stream.Read(buffer, offset + read, count - read);
-            if (n == 0)
-            {
-                throw new EndOfStreamException("Unexpected end of tar archive.");
-            }
-
-            read += n;
-        }
-    }
-
-    private static bool IsAllZero(byte[] buffer)
-    {
-        foreach (var value in buffer)
-        {
-            if (value != 0)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static string ReadNullTerminatedAscii(byte[] buffer, int offset, int count)
-    {
-        var length = 0;
-        while (length < count && buffer[offset + length] != 0)
-        {
-            length++;
-        }
-
-        return Encoding.ASCII.GetString(buffer, offset, length);
-    }
-
-    private static void CopyExactly(Stream input, Stream output, long bytes)
-    {
-        var buffer = new byte[81920];
-        var remaining = bytes;
-        while (remaining > 0)
-        {
-            var read = input.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
-            if (read == 0)
-            {
-                throw new EndOfStreamException("Unexpected end of tar archive entry.");
-            }
-
-            output.Write(buffer, 0, read);
-            remaining -= read;
-        }
-    }
-
-    private static void SkipEntry(Stream stream, long size)
-    {
-        var buffer = new byte[81920];
-        var remaining = size;
-        while (remaining > 0)
-        {
-            var read = stream.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
-            if (read == 0)
-            {
-                throw new EndOfStreamException("Unexpected end of tar archive entry.");
-            }
-
-            remaining -= read;
-        }
-
-        SkipPadding(stream, size);
-    }
-
-    private static void SkipPadding(Stream stream, long size)
-    {
-        var padding = (512 - (size % 512)) % 512;
-        while (padding > 0)
-        {
-            if (stream.ReadByte() < 0)
-            {
-                throw new EndOfStreamException("Unexpected end of tar archive padding.");
-            }
-
-            padding--;
         }
     }
 }

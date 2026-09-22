@@ -125,6 +125,11 @@ public sealed class SassCompileTask : Task
                 Log.LogMessage(MessageImportance.High, $"Executing: sass {arguments}");
 
                 var result = RunProcess(sassPath, arguments, gate);
+                if (result is null)
+                {
+                    return false;
+                }
+
                 if (result.ExitCode != 0)
                 {
                     Log.LogError($"Sass command failed with exit code {result.ExitCode}");
@@ -394,7 +399,7 @@ public sealed class SassCompileTask : Task
         return string.Join(" ", args);
     }
 
-    private ProcessResult RunProcess(string sassPath, string arguments, TaskLifetimeGate gate)
+    private ProcessResult? RunProcess(string sassPath, string arguments, TaskLifetimeGate gate)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -465,7 +470,8 @@ public sealed class SassCompileTask : Task
                     // Ignore if process already exited
                 }
 
-                throw new TimeoutException($"Sass command timed out after {TimeoutMilliseconds}ms");
+                Log.LogError($"Command timed out after {TimeoutMilliseconds}ms");
+                return null;
             }
 
             // The process is gone, but the handlers may not have drained. Waiting on the end-of-stream

@@ -117,6 +117,46 @@ public class SassDownloaderTests
     }
 
     [Fact]
+    public void DownloadRuntime_WithTarEntryEscapingTheDestination_ShouldThrowInvalidDataException()
+    {
+        // Arrange - ResolveArchiveDestination's zip-slip guard is shared between the zip and tar extraction
+        // paths; this proves it also applies when ITarArchiveProvider is what feeds it entry names, not just
+        // the zip path exercised above. Unlike the zip case, no fake provider is needed - WriteTarEntry
+        // writes whatever name it's given straight into the archive, so the malicious entry can travel
+        // through the real download response like a genuine archive would.
+        var platform = Platform.LinuxX64;
+        var tempDir = "/test-runtime";
+
+        var mockFileSystem = new MockFileSystem();
+        var mockHttp = new MockHttpMessageHandler();
+        mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz")
+                .Respond("application/gzip", CreateMockTarGz(("../../evil.txt", "malicious")));
+
+        var downloader = CreateDownloader(mockFileSystem, mockHttp, platform);
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidDataException>(() => downloader.DownloadRuntime(tempDir, "1.4.2"));
+        Assert.Contains("resolves outside the destination directory", ex.Message);
+    }
+
+    [Fact]
+    public void DownloadRuntime_WhenTarArchiveDoesNotContainTheExecutable_ShouldThrowFileNotFoundException()
+    {
+        var platform = Platform.LinuxX64;
+        var tempDir = "/test-runtime";
+
+        var mockFileSystem = new MockFileSystem();
+        var mockHttp = new MockHttpMessageHandler();
+        mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz")
+                .Respond("application/gzip", CreateMockTarGz(("dart-sass/README.md", "not the executable")));
+
+        var downloader = CreateDownloader(mockFileSystem, mockHttp, platform);
+
+        // Act & Assert
+        Assert.Throws<FileNotFoundException>(() => downloader.DownloadRuntime(tempDir, "1.4.2"));
+    }
+
+    [Fact]
     public void DownloadRuntime_WhenStaleDartSassDirectoryExists_ShouldReplaceItRatherThanMerge()
     {
         // Arrange - a leftover file from a previous version must not survive alongside the new extraction.
