@@ -23,7 +23,7 @@ public class SassCliDownloadTests
     // the resolver applies to the downloaded path - resolves it against the current directory's drive.
     // Those agree on a machine whose working directory is on C:, and disagree on CI, where the checkout
     // lives on D:.
-    private static readonly string TestRoot = Path.GetFullPath("scarlet-Sass-download-tests");
+    private static readonly string TestRoot = Path.GetFullPath("scarlet-sass-download-tests");
     private static readonly string ToolDirectory = Path.Combine(TestRoot, "tool");
     private static readonly string CacheRoot = Path.Combine(TestRoot, "cache");
 

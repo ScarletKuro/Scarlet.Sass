@@ -15,7 +15,7 @@ internal sealed class TempWorkspace : IDisposable
 
     public static TempWorkspace Create(string name)
     {
-        var rootDirectory = Path.Combine(Path.GetTempPath(), $"scarlet-Sass-{name}-{Guid.NewGuid():N}");
+        var rootDirectory = Path.Combine(Path.GetTempPath(), $"scarlet-sass-{name}-{Guid.NewGuid():N}");
         Directory.CreateDirectory(rootDirectory);
 
         return new TempWorkspace(rootDirectory);
