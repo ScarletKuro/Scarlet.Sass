@@ -23,56 +23,64 @@ public static class SassRuntimeResolver
                 directoryName: "dart-sass",
                 downloadName: "windows-x64",
                 packageName: "Scarlet.Sass.Runtime.windows-x64",
-                executableName: "sass.bat"
+                launcherName: "sass.bat",
+                dartExecutableName: "dart.exe"
             ),
             [Platform.WindowsArm64] = new(
                 rid: "win-arm64",
                 directoryName: "dart-sass",
                 downloadName: "windows-arm64",
                 packageName: "Scarlet.Sass.Runtime.windows-arm64",
-                executableName: "sass.bat"
+                launcherName: "sass.bat",
+                dartExecutableName: "dart.exe"
             ),
             [Platform.LinuxX64] = new(
                 rid: "linux-x64",
                 directoryName: "dart-sass",
                 downloadName: "linux-x64",
                 packageName: "Scarlet.Sass.Runtime.linux-x64",
-                executableName: "sass"
+                launcherName: "sass",
+                dartExecutableName: "dart"
             ),
             [Platform.LinuxArm64] = new(
                 rid: "linux-arm64",
                 directoryName: "dart-sass",
                 downloadName: "linux-arm64",
                 packageName: "Scarlet.Sass.Runtime.linux-arm64",
-                executableName: "sass"
+                launcherName: "sass",
+                dartExecutableName: "dart"
             ),
             [Platform.MacOsX64] = new(
                 rid: "osx-x64",
                 directoryName: "dart-sass",
                 downloadName: "macos-x64",
                 packageName: "Scarlet.Sass.Runtime.darwin-x64",
-                executableName: "sass"
+                launcherName: "sass",
+                dartExecutableName: "dart"
             ),
             [Platform.MacOsArm64] = new(
                 rid: "osx-arm64",
                 directoryName: "dart-sass",
                 downloadName: "macos-arm64",
                 packageName: "Scarlet.Sass.Runtime.darwin-arm64",
-                executableName: "sass"
+                launcherName: "sass",
+                dartExecutableName: "dart"
             ),
             [Platform.LinuxMuslX64] = new(
                 rid: "linux-musl-x64",
                 directoryName: "dart-sass",
                 downloadName: "linux-x64-musl",
                 packageName: "Scarlet.Sass.Runtime.linux-x64-musl",
-                executableName: "sass"
+                launcherName: "sass",
+                dartExecutableName: "dart"
             ),
             [Platform.LinuxMuslArm64] = new(
                 rid: "linux-musl-arm64",
                 directoryName: "dart-sass",
                 downloadName: "linux-arm64-musl",
                 packageName: "Scarlet.Sass.Runtime.linux-arm64-musl",
-                executableName: "sass"
+                launcherName: "sass",
+                dartExecutableName: "dart"
             )
         };
 
@@ -225,7 +233,7 @@ public static class SassRuntimeResolver
     /// <summary>
     /// Gets the Sass executable name for the specified platform.
     /// </summary>
-    public static string GetExecutableName(Platform platform) => GetInfo(platform).ExecutableName;
+    public static string GetExecutableName(Platform platform) => GetInfo(platform).LauncherName;
 
     /// <summary>
     /// Gets the runtime package name for the specified platform.
@@ -247,7 +255,7 @@ public static class SassRuntimeResolver
     {
         var info = GetInfo(platform);
 
-        return Path.GetFullPath(Path.Combine(runtimesPath, info.Rid, "native", info.DirectoryName, info.ExecutableName));
+        return Path.GetFullPath(Path.Combine(runtimesPath, info.Rid, "native", info.DirectoryName, info.LauncherName));
     }
 
     /// <summary>
@@ -264,7 +272,7 @@ public static class SassRuntimeResolver
             return SassLaunchCommand.FromExecutablePath(sassExecutablePath);
         }
 
-        var dartPath = Path.Combine(bundleDirectory, "src", GetDartExecutableName(platform));
+        var dartPath = Path.Combine(bundleDirectory, "src", GetInfo(platform).DartExecutableName);
         var snapshotPath = Path.Combine(bundleDirectory, "src", "sass.snapshot");
 
         return fileSystem.File.Exists(dartPath) && fileSystem.File.Exists(snapshotPath)
@@ -286,7 +294,7 @@ public static class SassRuntimeResolver
             return new[] { sassExecutablePath };
         }
 
-        var dartPath = Path.Combine(directory, "src", GetDartExecutableName(platform));
+        var dartPath = Path.Combine(directory, "src", GetInfo(platform).DartExecutableName);
 
         return new[]
         {
@@ -441,22 +449,22 @@ public static class SassRuntimeResolver
         Platform platform,
         string runtimeDirectory)
     {
-        var SassPath = GetExecutablePath(runtimeDirectory, platform);
+        var sassPath = GetExecutablePath(runtimeDirectory, platform);
 
-        if (!fileSystem.File.Exists(SassPath))
+        if (!fileSystem.File.Exists(sassPath))
         {
             var runtimePackageName = GetRuntimePackageName(platform);
 
             throw new FileNotFoundException(
-                $"Sass executable not found at: {SassPath}\n\n" +
+                $"Sass executable not found at: {sassPath}\n\n" +
                 $"SassRuntimeDirectory points at '{runtimeDirectory}', which does not contain a Sass build for {GetRuntimeIdentifier(platform)}.\n" +
                 $"Either clear that property and reference the {runtimePackageName} package, or make sure the directory " +
                 $"contains '{GetRuntimeIdentifier(platform)}/native/{GetInfo(platform).DirectoryName}/{GetExecutableName(platform)}'.");
         }
 
-        EnsureExecutablePermissions(fileSystem, chmodProvider, SassPath, platform);
+        EnsureExecutablePermissions(fileSystem, chmodProvider, sassPath, platform);
 
-        return CreateLaunchCommand(fileSystem, SassPath, platform);
+        return CreateLaunchCommand(fileSystem, sassPath, platform);
     }
 
     /// <summary>
@@ -537,7 +545,4 @@ public static class SassRuntimeResolver
             ? info
             : throw new ArgumentException($"Unknown platform: {platform}", nameof(platform));
     }
-
-    private static string GetDartExecutableName(Platform platform) =>
-        platform is Platform.WindowsX64 or Platform.WindowsArm64 ? "dart.exe" : "dart";
 }

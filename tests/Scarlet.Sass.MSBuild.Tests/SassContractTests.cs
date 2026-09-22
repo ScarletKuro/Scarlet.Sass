@@ -8,15 +8,20 @@ namespace Scarlet.Sass.MSBuild.Tests;
 public class SassContractTests
 {
     [Theory]
-    [InlineData(Platform.WindowsX64, "win-x64", "windows-x64", "sass.bat")]
-    [InlineData(Platform.WindowsArm64, "win-arm64", "windows-arm64", "sass.bat")]
-    [InlineData(Platform.LinuxX64, "linux-x64", "linux-x64", "sass")]
-    [InlineData(Platform.LinuxArm64, "linux-arm64", "linux-arm64", "sass")]
-    [InlineData(Platform.LinuxMuslX64, "linux-musl-x64", "linux-x64-musl", "sass")]
-    [InlineData(Platform.LinuxMuslArm64, "linux-musl-arm64", "linux-arm64-musl", "sass")]
-    [InlineData(Platform.MacOsX64, "osx-x64", "macos-x64", "sass")]
-    [InlineData(Platform.MacOsArm64, "osx-arm64", "macos-arm64", "sass")]
-    public void PlatformMap_UsesDartSassArchiveAndLayout(Platform platform, string rid, string downloadName, string executableName)
+    [InlineData(Platform.WindowsX64, "win-x64", "windows-x64", "sass.bat", "dart.exe")]
+    [InlineData(Platform.WindowsArm64, "win-arm64", "windows-arm64", "sass.bat", "dart.exe")]
+    [InlineData(Platform.LinuxX64, "linux-x64", "linux-x64", "sass", "dart")]
+    [InlineData(Platform.LinuxArm64, "linux-arm64", "linux-arm64", "sass", "dart")]
+    [InlineData(Platform.LinuxMuslX64, "linux-musl-x64", "linux-x64-musl", "sass", "dart")]
+    [InlineData(Platform.LinuxMuslArm64, "linux-musl-arm64", "linux-arm64-musl", "sass", "dart")]
+    [InlineData(Platform.MacOsX64, "osx-x64", "macos-x64", "sass", "dart")]
+    [InlineData(Platform.MacOsArm64, "osx-arm64", "macos-arm64", "sass", "dart")]
+    public void PlatformMap_UsesDartSassArchiveAndLayout(
+        Platform platform,
+        string rid,
+        string downloadName,
+        string executableName,
+        string dartExecutableName)
     {
         Assert.Equal(rid, SassRuntimeResolver.GetRuntimeIdentifier(platform));
         Assert.Equal("dart-sass", SassRuntimeResolver.GetRuntimeDirectoryName(platform));
@@ -24,8 +29,10 @@ public class SassContractTests
         Assert.Equal(executableName, SassRuntimeResolver.GetExecutableName(platform));
 
         var executablePath = SassRuntimeResolver.GetExecutablePath("runtimes", platform);
+        var permissionPaths = SassRuntimeResolver.GetExecutablePermissionPaths(executablePath, platform);
 
         Assert.EndsWith(Path.Combine(rid, "native", "dart-sass", executableName), executablePath);
+        Assert.EndsWith(Path.Combine(rid, "native", "dart-sass", "src", dartExecutableName), permissionPaths[1]);
     }
 
     [Fact]

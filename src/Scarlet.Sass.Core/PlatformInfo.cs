@@ -6,19 +6,22 @@ public sealed class PlatformInfo
     public string DirectoryName { get; }
     public string DownloadName { get; }
     public string PackageName { get; }
-    public string ExecutableName { get; }
+    public string LauncherName { get; }
+    public string DartExecutableName { get; }
 
     public PlatformInfo(
         string rid,
         string directoryName,
         string downloadName,
         string packageName,
-        string executableName)
+        string launcherName,
+        string dartExecutableName)
     {
         Rid = rid;
         DirectoryName = directoryName;
         DownloadName = downloadName;
         PackageName = packageName;
-        ExecutableName = executableName;
+        LauncherName = launcherName;
+        DartExecutableName = dartExecutableName;
     }
 }
