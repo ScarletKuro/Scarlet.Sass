@@ -52,14 +52,12 @@ public sealed class SassRuntimePack
     /// <param name="runtimesPath">Directory containing <c>&lt;rid&gt;/native/&lt;executable&gt;</c>.</param>
     /// <param name="variant">Optional Sass build variant, used for diagnostics only.</param>
     /// <param name="priority">Selection priority. Higher wins when several packs provide the same RID.</param>
-    /// <param name="source">Which contract the pack was declared through.</param>
     public SassRuntimePack(
         string id,
         string rid,
         string runtimesPath,
         string? variant = null,
-        int priority = 0,
-        SassRuntimePackSource source = SassRuntimePackSource.Item)
+        int priority = 0)
     {
         if (string.IsNullOrWhiteSpace(id))
         {
@@ -81,7 +79,6 @@ public sealed class SassRuntimePack
         RuntimesPath = runtimesPath.Trim();
         Variant = string.IsNullOrWhiteSpace(variant) ? null : variant!.Trim();
         Priority = priority;
-        Source = source;
     }
 
     /// <summary>Identifier of the pack, normally the runtime package id.</summary>
@@ -98,13 +95,6 @@ public sealed class SassRuntimePack
 
     /// <summary>Selection priority. Higher wins when several packs provide the same RID.</summary>
     public int Priority { get; }
-
-    /// <summary>Which contract the pack was declared through.</summary>
-    /// <remarks>
-    /// After <see cref="Deduplicate"/>, a pack still marked <see cref="SassRuntimePackSource.LegacyProperty"/> is one
-    /// that no runtime package described as an item - which is exactly the case worth reporting.
-    /// </remarks>
-    public SassRuntimePackSource Source { get; }
 
     /// <summary>
     /// Removes packs that resolve to the same RID and directory.

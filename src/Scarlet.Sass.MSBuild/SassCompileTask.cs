@@ -165,7 +165,6 @@ public sealed class SassCompileTask : Task
         var outputStyle = debug ? "expanded" : "compressed";
         var sourceMap = debug;
         var embedSources = debug;
-        var quietDeps = false;
 
         if (!string.Equals(outputStyleValue, "Auto", StringComparison.OrdinalIgnoreCase))
         {
@@ -185,7 +184,7 @@ public sealed class SassCompileTask : Task
 
         sourceMap = ParseAutoBoolean(sourceMapValue, sourceMap, "SassSourceMap");
         embedSources = ParseAutoBoolean(embedSourcesValue, embedSources, "SassEmbedSources");
-        quietDeps = ParseBoolean(quietDepsValue, "SassQuietDeps");
+        var quietDeps = ParseBoolean(quietDepsValue, "SassQuietDeps");
 
         return new SassSettings(
             outputStyle,
@@ -393,7 +392,8 @@ public sealed class SassCompileTask : Task
             StandardErrorEncoding = Encoding.UTF8
         };
 
-        using var process = new Process { StartInfo = startInfo };
+        using var process = new Process();
+        process.StartInfo = startInfo;
         var output = new OutputCollector(DiagnosticTailLineCount, captureAll: false);
         var error = new OutputCollector(DiagnosticTailLineCount, captureAll: false);
 

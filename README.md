@@ -1,7 +1,7 @@
 # Scarlet.Sass
 
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/ScarletKuro/Scarlet.Sass/.github/workflows/ci.yml?branch=master&logo=github&style=flat-square)
-[![codecov](https://codecov.io/gh/ScarletKuro/Scarlet.Sass/graph/badge.svg?token=A7MOQE06ZQ)](https://codecov.io/gh/ScarletKuro/Scarlet.Sass)
+[![codecov](https://codecov.io/gh/ScarletKuro/Scarlet.Sass/graph/badge.svg?token=75HVSVF7JG)](https://codecov.io/gh/ScarletKuro/Scarlet.Sass)
 [![GitHub](https://img.shields.io/github/license/ScarletKuro/Scarlet.Sass?color=594ae2&logo=github&style=flat-square)](https://github.com/ScarletKuro/Scarlet.Sass/blob/master/LICENSE)
 
 [Dart Sass](https://sass-lang.com/dart-sass/) for .NET, as a pinned NuGet dependency or .NET tool rather
