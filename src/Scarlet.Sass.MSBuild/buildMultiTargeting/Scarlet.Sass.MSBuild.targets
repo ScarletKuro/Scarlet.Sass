@@ -47,12 +47,13 @@
 
   <Target Name="SassClean"
           BeforeTargets="CoreClean"
-          DependsOnTargets="_SassResolveStampDirectory"
-          Condition="'$(_SassStampDirectory)' != '' AND Exists('$(_SassStampDirectory)\Sass.generated.txt')">
-    <ReadLinesFromFile File="$(_SassStampDirectory)\Sass.generated.txt">
+          DependsOnTargets="_SassResolveStampDirectory">
+    <ReadLinesFromFile File="$(_SassStampDirectory)/Sass.generated.txt"
+                       Condition="'$(_SassStampDirectory)' != '' AND Exists('$(_SassStampDirectory)/Sass.generated.txt')">
       <Output TaskParameter="Lines" ItemName="_SassFilesToClean" />
     </ReadLinesFromFile>
-    <Delete Files="@(_SassFilesToClean)" />
-    <Delete Files="$(_SassStampDirectory)\Sass.generated.txt;$(_SassStampDirectory)\Sass.settings.stamp" />
+    <Delete Files="@(_SassFilesToClean)" Condition="'@(_SassFilesToClean)' != ''" />
+    <Delete Files="$(_SassStampDirectory)/Sass.generated.txt;$(_SassStampDirectory)/Sass.settings.stamp"
+            Condition="'$(_SassStampDirectory)' != ''" />
   </Target>
 </Project>

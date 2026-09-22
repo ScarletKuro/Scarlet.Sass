@@ -132,6 +132,12 @@ public class SassContractTests
         Assert.Contains("<_SassGeneratedContent Include=\"%(_SassGeneratedFiles.RelativePath)\"", targets);
         Assert.Contains("ItemName=\"_SassGeneratedFiles\"", targets);
         Assert.Contains("<FileWrites Include=\"@(_SassGeneratedFiles)\"", targets);
+        Assert.Contains("Exists('$(_SassStampDirectory)/Sass.generated.txt')", targets);
+        Assert.Contains("File=\"$(_SassStampDirectory)/Sass.generated.txt\"", targets);
+        Assert.Contains("Files=\"$(_SassStampDirectory)/Sass.generated.txt;$(_SassStampDirectory)/Sass.settings.stamp\"", targets);
+        Assert.Contains("Condition=\"'@(_SassFilesToClean)' != ''\"", targets);
+        Assert.DoesNotContain("<Target Name=\"SassClean\" BeforeTargets=\"CoreClean\" DependsOnTargets=\"_SassResolveStampDirectory\" Condition=", targets);
+        Assert.DoesNotContain("$(_SassStampDirectory)\\", targets);
     }
 
     [Fact]
