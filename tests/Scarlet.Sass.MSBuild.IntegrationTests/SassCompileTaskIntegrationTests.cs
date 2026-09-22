@@ -98,6 +98,7 @@ public class SassCompileTaskIntegrationTests
 
         var item = new TaskItem("Sass");
         item.SetMetadata("OutputPath", "wwwroot/css");
+        item.SetMetadata("AdditionalArguments", "--watch --poll");
 
         var buildEngine = new MockBuildEngine(_output);
         var task = new SassCompileTask
@@ -111,14 +112,13 @@ public class SassCompileTaskIntegrationTests
             EmbedSources = "Auto",
             QuietDeps = "false",
             RuntimeDirectory = Path.Combine(RepositoryRoot.Path, "src", "Scarlet.Sass.MSBuild", "bin", "runtimes"),
-            // Shorter than the Dart VM needs to even start up, so this reliably fires without depending on
-            // how long compiling the (trivial) entry point itself takes.
-            TimeoutMilliseconds = 1
+            // Watch mode intentionally keeps Sass alive after the initial compile, so the timeout assertion
+            // does not depend on host speed or Dart VM startup cost.
+            TimeoutMilliseconds = 200
         };
 
         Assert.False(task.Execute());
         Assert.Contains(buildEngine.Errors, e => e.Message != null && e.Message.Contains("timed out", StringComparison.OrdinalIgnoreCase));
-        Assert.False(File.Exists(workspace.PathTo("wwwroot", "css", "site.css")));
     }
 
     private static SassCompileTask CreateTask(TempWorkspace workspace, TaskItem item)

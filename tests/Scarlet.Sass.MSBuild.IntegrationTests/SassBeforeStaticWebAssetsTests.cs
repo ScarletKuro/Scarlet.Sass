@@ -85,12 +85,16 @@ public class SassBeforeStaticWebAssetsTests
         // The real MSBuild-property counterpart to SassCompileTaskIntegrationTests' direct-task timeout
         // test: that one sets SassCompileTask.TimeoutMilliseconds in-process and never touches the .targets
         // file at all, so it cannot catch $(SassTimeoutMilliseconds) being dropped on the way to the task.
-        using var workspace = CreateRazorClassLibrary(additionalProperties: "<SassTimeoutMilliseconds>1</SassTimeoutMilliseconds>");
+        using var workspace = CreateRazorClassLibrary(
+            additionalProperties: """
+            <SassTimeoutMilliseconds>200</SassTimeoutMilliseconds>
+            <SassAdditionalArguments>--watch --poll</SassAdditionalArguments>
+            """);
 
         var result = await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}");
 
         Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("timed out after 1ms", result.Output, StringComparison.Ordinal);
+        Assert.Contains("timed out after 200ms", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]

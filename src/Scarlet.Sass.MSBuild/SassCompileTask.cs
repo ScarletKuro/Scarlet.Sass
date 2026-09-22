@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
@@ -462,14 +463,7 @@ public sealed class SassCompileTask : Task
         {
             if (!process.WaitForExit(TimeoutMilliseconds))
             {
-                try
-                {
-                    process.Kill();
-                }
-                catch
-                {
-                    // Ignore if process already exited
-                }
+                KillProcessTree(process);
 
                 Log.LogError($"Command timed out after {TimeoutMilliseconds}ms");
                 return null;
@@ -536,6 +530,27 @@ public sealed class SassCompileTask : Task
         }
 
         return builder.ToString();
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static void KillProcessTree(Process process)
+    {
+        try
+        {
+            var killTree = typeof(Process).GetMethod("Kill", new[] { typeof(bool) });
+            if (killTree != null)
+            {
+                killTree.Invoke(process, new object[] { true });
+            }
+            else
+            {
+                process.Kill();
+            }
+        }
+        catch
+        {
+            // Ignore if the process exited between the timeout check and the kill request.
+        }
     }
 
     private static IReadOnlyList<string> ReadManifest(IFileSystem fileSystem, string manifestPath)
