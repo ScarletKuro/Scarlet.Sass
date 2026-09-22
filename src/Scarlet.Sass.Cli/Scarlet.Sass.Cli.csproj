@@ -139,8 +139,13 @@
            Text="Scarlet.Sass.Cli: no Sass binary for $(RuntimeIdentifier) at '$(SassBinaryPath)'. It is produced by Scarlet.Sass.Runtime.$(SassRuntimeProject), whose download target tolerates failure - check network access to github.com and that pwsh (Windows) or bash+curl+unzip (Unix) are available, then rebuild. Packing a RID package without its Sass binary would ship a broken tool." />
 
     <ItemGroup>
-      <None Include="$(SassRuntimeProjectDir)dart-sass\**\*">
-        <Link>dart-sass\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <_SassRuntimeFile Include="$(SassRuntimeProjectDir)dart-sass\**\*" />
+      <None Remove="$(SassRuntimeProjectDir)dart-sass\**\*" />
+      <Content Remove="$(SassRuntimeProjectDir)dart-sass\**\*" />
+
+      <None Include="@(_SassRuntimeFile)">
+        <Link>dart-sass\%(_SassRuntimeFile.RecursiveDir)%(_SassRuntimeFile.Filename)%(_SassRuntimeFile.Extension)</Link>
+        <TargetPath>dart-sass\%(_SassRuntimeFile.RecursiveDir)%(_SassRuntimeFile.Filename)%(_SassRuntimeFile.Extension)</TargetPath>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
         <Pack>false</Pack>

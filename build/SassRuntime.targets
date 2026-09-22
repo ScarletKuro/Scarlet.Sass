@@ -22,8 +22,13 @@
   </Target>
 
   <ItemGroup>
+    <None Remove="$(MSBuildProjectDirectory)/dart-sass/**/*" />
+    <Content Remove="$(MSBuildProjectDirectory)/dart-sass/**/*" />
+
     <None Include="$(MSBuildProjectDirectory)/dart-sass/**/*"
           Pack="true"
-          PackagePath="runtimes/$(RuntimeRid)/native/dart-sass/" />
+          PackagePath="runtimes/$(RuntimeRid)/native/dart-sass/"
+          CopyToOutputDirectory="Never"
+          CopyToPublishDirectory="Never" />
   </ItemGroup>
 </Project>

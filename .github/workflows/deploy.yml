@@ -32,7 +32,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        os: [uSasstu-latest, uSasstu-24.04-arm, windows-latest, macos-latest, windows-11-arm]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest, windows-11-arm]
       fail-fast: false
 
     steps:
@@ -67,16 +67,16 @@ jobs:
       matrix:
         include:
           - arch: x64
-            os: uSasstu-latest
+            os: ubuntu-latest
           - arch: arm64
-            os: uSasstu-24.04-arm
+            os: ubuntu-24.04-arm
       fail-fast: false
 
     steps:
       - name: Install build prerequisites
         run: apk add --no-cache bash curl unzip icu-libs git
 
-      # actions/checkout is a JS action, and the runner's Sassdled Node build for Alpine containers only
+      # actions/checkout is a JS action, and the runner's bundled Node build for Alpine containers only
       # covers x64 - on the arm64 leg it fails with "JavaScript Actions in Alpine containers are only
       # supported on x64 Linux runners". git is a native binary, so it works on both legs regardless.
       - name: Checkout code
@@ -108,11 +108,11 @@ jobs:
             --configuration Release \
             --output ./packages -p:Version=$VERSION
 
-          dotnet pack src/Scarlet.Sass.Runtime.linux-x64-musl-baseline/Scarlet.Sass.Runtime.linux-x64-musl-baseline.csproj \
+          dotnet pack src/Scarlet.Sass.Runtime.linux-x64-musl/Scarlet.Sass.Runtime.linux-x64-musl.csproj \
             --configuration Release \
             --output ./packages
 
-          dotnet pack src/Scarlet.Sass.Runtime.linux-aarch64-musl/Scarlet.Sass.Runtime.linux-aarch64-musl.csproj \
+          dotnet pack src/Scarlet.Sass.Runtime.linux-arm64-musl/Scarlet.Sass.Runtime.linux-arm64-musl.csproj \
             --configuration Release \
             --output ./packages
 
@@ -146,7 +146,7 @@ jobs:
 
   deploy:
     name: Build and Deploy to NuGet
-    runs-on: uSasstu-latest
+    runs-on: ubuntu-latest
     # Only run deploy if all tests pass, including musl
     needs: [test, test-musl]
     permissions:
@@ -289,35 +289,35 @@ jobs:
         if: steps.release_target.outputs.pack_runtime == 'true'
         run: |
           # Runtime packages use SassVersion from their .csproj, no /p:Version override.
-          dotnet pack src/Scarlet.Sass.Runtime.windows-x64-baseline/Scarlet.Sass.Runtime.windows-x64-baseline.csproj \
+          dotnet pack src/Scarlet.Sass.Runtime.windows-x64/Scarlet.Sass.Runtime.windows-x64.csproj \
             --configuration Release \
             --output ./packages
 
-          dotnet pack src/Scarlet.Sass.Runtime.linux-x64-baseline/Scarlet.Sass.Runtime.linux-x64-baseline.csproj \
+          dotnet pack src/Scarlet.Sass.Runtime.windows-arm64/Scarlet.Sass.Runtime.windows-arm64.csproj \
             --configuration Release \
             --output ./packages
 
-          dotnet pack src/Scarlet.Sass.Runtime.linux-aarch64/Scarlet.Sass.Runtime.linux-aarch64.csproj \
+          dotnet pack src/Scarlet.Sass.Runtime.linux-x64/Scarlet.Sass.Runtime.linux-x64.csproj \
             --configuration Release \
             --output ./packages
 
-          dotnet pack src/Scarlet.Sass.Runtime.linux-x64-musl-baseline/Scarlet.Sass.Runtime.linux-x64-musl-baseline.csproj \
+          dotnet pack src/Scarlet.Sass.Runtime.linux-arm64/Scarlet.Sass.Runtime.linux-arm64.csproj \
             --configuration Release \
             --output ./packages
 
-          dotnet pack src/Scarlet.Sass.Runtime.linux-aarch64-musl/Scarlet.Sass.Runtime.linux-aarch64-musl.csproj \
+          dotnet pack src/Scarlet.Sass.Runtime.linux-x64-musl/Scarlet.Sass.Runtime.linux-x64-musl.csproj \
             --configuration Release \
             --output ./packages
 
-          dotnet pack src/Scarlet.Sass.Runtime.darwin-x64-baseline/Scarlet.Sass.Runtime.darwin-x64-baseline.csproj \
+          dotnet pack src/Scarlet.Sass.Runtime.linux-arm64-musl/Scarlet.Sass.Runtime.linux-arm64-musl.csproj \
             --configuration Release \
             --output ./packages
 
-          dotnet pack src/Scarlet.Sass.Runtime.windows-aarch64/Scarlet.Sass.Runtime.windows-aarch64.csproj \
+          dotnet pack src/Scarlet.Sass.Runtime.darwin-x64/Scarlet.Sass.Runtime.darwin-x64.csproj \
             --configuration Release \
             --output ./packages
 
-          dotnet pack src/Scarlet.Sass.Runtime.darwin-aarch64/Scarlet.Sass.Runtime.darwin-aarch64.csproj \
+          dotnet pack src/Scarlet.Sass.Runtime.darwin-arm64/Scarlet.Sass.Runtime.darwin-arm64.csproj \
             --configuration Release \
             --output ./packages
 

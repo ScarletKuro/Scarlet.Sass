@@ -18,7 +18,7 @@ env:
 jobs:
   mirror:
     name: Mirror repository
-    runs-on: uSasstu-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
