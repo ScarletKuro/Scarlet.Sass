@@ -74,7 +74,9 @@ public class ArgumentForwardingTests
 
         // Assert
         Assert.NotNull(launcher.Received);
-        Assert.Equal(embeddedPath, launcher.Received!.Value.ExecutablePath);
+        Assert.EndsWith(Path.Combine("dart-sass", "src", "dart"), launcher.Received.Value.Command.FileName);
+        Assert.EndsWith(Path.Combine("dart-sass", "src", "sass.snapshot"), Assert.Single(launcher.Received.Value.Command.Arguments));
+        Assert.Equal(embeddedPath, launcher.Received.Value.Command.DisplayPath);
     }
 
     [Fact]
@@ -119,6 +121,8 @@ public class ArgumentForwardingTests
 
         var fileSystem = new MockFileSystem();
         fileSystem.AddFile(embeddedPath, new MockFileData("fake Sass"));
+        fileSystem.AddFile(Path.Combine(toolDirectory, "dart-sass", "src", "dart"), new MockFileData("fake Dart"));
+        fileSystem.AddFile(Path.Combine(toolDirectory, "dart-sass", "src", "sass.snapshot"), new MockFileData("fake snapshot"));
 
         var environment = new FakeEnvironmentProvider(new Dictionary<string, string>
         {

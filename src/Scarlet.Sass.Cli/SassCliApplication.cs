@@ -90,7 +90,7 @@ internal sealed class SassCliApplication
 
         try
         {
-            return _launcher.Run(new SassLaunchRequest(resolution.ExecutablePath, args));
+            return _launcher.Run(new SassLaunchRequest(resolution.GetLaunchCommand(), args));
         }
         catch (Win32Exception exception)
         {

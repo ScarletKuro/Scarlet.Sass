@@ -29,7 +29,7 @@ internal sealed class ProcessLauncher : IProcessLauncher
     /// <inheritdoc />
     public int Run(SassLaunchRequest request)
     {
-        var startInfo = new ProcessStartInfo(request.ExecutablePath)
+        var startInfo = new ProcessStartInfo(request.Command.FileName)
         {
             UseShellExecute = false,
             CreateNoWindow = false,
@@ -40,7 +40,7 @@ internal sealed class ProcessLauncher : IProcessLauncher
 
         // ArgumentList, never a concatenated string: the runtime applies the platform's quoting rules, which
         // is the only way arguments containing spaces, quotes or trailing backslashes survive intact.
-        foreach (var argument in request.Arguments)
+        foreach (var argument in request.Command.Arguments.Concat(request.Arguments))
         {
             startInfo.ArgumentList.Add(argument);
         }

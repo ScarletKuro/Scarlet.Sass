@@ -25,6 +25,29 @@ public class SassCliResolverTests
     }
 
     [Fact]
+    public void Resolve_WithOfficialEmbeddedBundle_ShouldLaunchDartDirectly()
+    {
+        // Arrange
+        var fileSystem = new MockFileSystem();
+        var embedded = Path.Combine(ToolDirectory, "dart-sass", "sass");
+        var dart = Path.Combine(ToolDirectory, "dart-sass", "src", "dart");
+        var snapshot = Path.Combine(ToolDirectory, "dart-sass", "src", "sass.snapshot");
+        fileSystem.AddFile(embedded, new MockFileData("sass"));
+        fileSystem.AddFile(dart, new MockFileData("dart"));
+        fileSystem.AddFile(snapshot, new MockFileData("snapshot"));
+
+        // Act
+        var resolution = Resolve(fileSystem, out _);
+
+        // Assert
+        Assert.Equal(embedded, resolution.ExecutablePath);
+        Assert.NotNull(resolution.LaunchCommand);
+        Assert.EndsWith(Path.Combine("dart-sass", "src", "dart"), resolution.LaunchCommand!.FileName);
+        Assert.EndsWith(Path.Combine("dart-sass", "src", "sass.snapshot"), Assert.Single(resolution.LaunchCommand.Arguments));
+        Assert.Equal(embedded, resolution.LaunchCommand.DisplayPath);
+    }
+
+    [Fact]
     public void Resolve_WithEmbeddedBinary_ShouldMakeItExecutable()
     {
         // Arrange - NuGet packages carry no Unix permission bits, so without this the first run on Linux or

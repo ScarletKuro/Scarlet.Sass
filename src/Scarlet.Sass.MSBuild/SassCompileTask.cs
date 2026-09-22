@@ -94,7 +94,7 @@ public sealed class SassCompileTask : Task
                 return true;
             }
 
-            var sassPath = ResolveSass(fileSystem);
+            var sassCommand = ResolveSass(fileSystem);
             var stampDirectory = ResolveStampDirectory();
             var manifestPath = Path.Combine(stampDirectory, "Sass.generated.txt");
             var stampPath = Path.Combine(stampDirectory, "Sass.settings.stamp");
@@ -117,7 +117,7 @@ public sealed class SassCompileTask : Task
                 DeleteIfExists(fileSystem, stale);
             }
 
-            Log.LogMessage(MessageImportance.High, $"Using Sass at: {sassPath}");
+            Log.LogMessage(MessageImportance.High, $"Using Sass at: {sassCommand.DisplayPath}");
 
             foreach (var group in entries.GroupBy(static entry => entry.Settings.ToString()))
             {
@@ -125,7 +125,7 @@ public sealed class SassCompileTask : Task
                 var arguments = BuildArguments(groupedEntries[0].Settings, groupedEntries);
                 Log.LogMessage(MessageImportance.High, $"Executing: sass {arguments}");
 
-                var result = RunProcess(sassPath, arguments, gate);
+                var result = RunProcess(sassCommand, arguments, gate);
                 if (result is null)
                 {
                     return false;
@@ -313,7 +313,7 @@ public sealed class SassCompileTask : Task
         return outputs;
     }
 
-    private string ResolveSass(IFileSystem fileSystem)
+    private SassLaunchCommand ResolveSass(IFileSystem fileSystem)
     {
         var chmodProvider = Chmod.CreateProvider();
 
@@ -334,10 +334,12 @@ public sealed class SassCompileTask : Task
                 chmodProvider,
                 SassRuntimeResolver.GetCurrentPlatform(),
                 new MsBuildSassLogger(Log));
-            return downloader.DownloadRuntime(RuntimeDirectory!, SassVersionDownload, DownloadMutexTimeoutSeconds);
+            var sassPath = downloader.DownloadRuntime(RuntimeDirectory!, SassVersionDownload, DownloadMutexTimeoutSeconds);
+
+            return SassRuntimeResolver.CreateLaunchCommand(fileSystem, sassPath, SassRuntimeResolver.GetCurrentPlatform());
         }
 
-        return SassRuntimeResolver.ResolveSassExecutable(
+        return SassRuntimeResolver.ResolveSassLaunchCommand(
             fileSystem,
             chmodProvider,
             SassRuntimeResolver.GetCurrentPlatform(),
@@ -401,12 +403,15 @@ public sealed class SassCompileTask : Task
         return string.Join(" ", args);
     }
 
-    private ProcessResult? RunProcess(string sassPath, string arguments, TaskLifetimeGate gate)
+    private ProcessResult? RunProcess(SassLaunchCommand command, string arguments, TaskLifetimeGate gate)
     {
+        var processArguments = string.Join(
+            " ",
+            command.Arguments.Select(Quote).Concat(new[] { arguments }));
         var startInfo = new ProcessStartInfo
         {
-            FileName = sassPath,
-            Arguments = arguments,
+            FileName = command.FileName,
+            Arguments = processArguments,
             WorkingDirectory = ProjectDirectory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -463,7 +468,14 @@ public sealed class SassCompileTask : Task
         {
             if (!process.WaitForExit(TimeoutMilliseconds))
             {
-                KillProcessTree(process);
+                try
+                {
+                    process.Kill();
+                }
+                catch
+                {
+                    // Ignore if process already exited.
+                }
 
                 Log.LogError($"Command timed out after {TimeoutMilliseconds}ms");
                 return null;
@@ -530,27 +542,6 @@ public sealed class SassCompileTask : Task
         }
 
         return builder.ToString();
-    }
-
-    [ExcludeFromCodeCoverage]
-    private static void KillProcessTree(Process process)
-    {
-        try
-        {
-            var killTree = typeof(Process).GetMethod("Kill", new[] { typeof(bool) });
-            if (killTree != null)
-            {
-                killTree.Invoke(process, new object[] { true });
-            }
-            else
-            {
-                process.Kill();
-            }
-        }
-        catch
-        {
-            // Ignore if the process exited between the timeout check and the kill request.
-        }
     }
 
     private static IReadOnlyList<string> ReadManifest(IFileSystem fileSystem, string manifestPath)

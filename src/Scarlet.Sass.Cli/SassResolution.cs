@@ -15,6 +15,7 @@ namespace Scarlet.Sass.Cli;
 /// <param name="RuntimeDirectory">The version-scoped directory downloads go to.</param>
 /// <param name="EmbeddedProbePath">Where an embedded binary would have been, for diagnostics.</param>
 /// <param name="FailureReason">Why resolution failed, when it did.</param>
+/// <param name="LaunchCommand">The command to start when resolution succeeds.</param>
 internal sealed record SassResolution(
     string? ExecutablePath,
     SassSource Source,
@@ -24,9 +25,13 @@ internal sealed record SassResolution(
     string CacheRoot,
     string RuntimeDirectory,
     string EmbeddedProbePath,
-    string? FailureReason)
+    string? FailureReason,
+    SassLaunchCommand? LaunchCommand = null)
 {
     /// <summary>Whether a usable Sass executable was resolved.</summary>
     [MemberNotNullWhen(true, nameof(ExecutablePath))]
     public bool IsResolved => ExecutablePath is not null;
+
+    public SassLaunchCommand GetLaunchCommand() =>
+        LaunchCommand ?? SassLaunchCommand.FromExecutablePath(ExecutablePath!);
 }

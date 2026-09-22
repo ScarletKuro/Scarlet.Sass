@@ -251,6 +251,28 @@ public static class SassRuntimeResolver
     }
 
     /// <summary>
+    /// Creates the process command for a resolved Sass launcher.
+    /// </summary>
+    public static SassLaunchCommand CreateLaunchCommand(
+        IFileSystem fileSystem,
+        string sassExecutablePath,
+        Platform platform)
+    {
+        var bundleDirectory = Path.GetDirectoryName(sassExecutablePath);
+        if (string.IsNullOrEmpty(bundleDirectory))
+        {
+            return SassLaunchCommand.FromExecutablePath(sassExecutablePath);
+        }
+
+        var dartPath = Path.Combine(bundleDirectory, "src", GetDartExecutableName(platform));
+        var snapshotPath = Path.Combine(bundleDirectory, "src", "sass.snapshot");
+
+        return fileSystem.File.Exists(dartPath) && fileSystem.File.Exists(snapshotPath)
+            ? new SassLaunchCommand(dartPath, new[] { snapshotPath }, sassExecutablePath)
+            : SassLaunchCommand.FromExecutablePath(sassExecutablePath);
+    }
+
+    /// <summary>
     /// Gets the files in a Dart Sass bundle that must be executable on Unix-like hosts.
     /// </summary>
     /// <param name="sassExecutablePath">Path to the public Sass launcher.</param>
@@ -258,21 +280,18 @@ public static class SassRuntimeResolver
     /// <returns>The launcher, plus the internal Dart VM on Linux and macOS.</returns>
     public static IReadOnlyList<string> GetExecutablePermissionPaths(string sassExecutablePath, Platform platform)
     {
-        if (platform is Platform.WindowsX64 or Platform.WindowsArm64)
-        {
-            return new[] { sassExecutablePath };
-        }
-
         var directory = Path.GetDirectoryName(sassExecutablePath);
         if (string.IsNullOrEmpty(directory))
         {
             return new[] { sassExecutablePath };
         }
 
+        var dartPath = Path.Combine(directory, "src", GetDartExecutableName(platform));
+
         return new[]
         {
             sassExecutablePath,
-            Path.Combine(directory, "src", "dart")
+            dartPath
         };
     }
 
@@ -355,6 +374,26 @@ public static class SassRuntimeResolver
         string? runtimeDirectory = null,
         IReadOnlyList<SassRuntimePack>? runtimePacks = null,
         Action<string>? log = null)
+        => ResolveSassLaunchCommand(fileSystem, chmodProvider, platform, runtimeDirectory, runtimePacks, log).DisplayPath;
+
+    /// <summary>
+    /// Resolves the command used to launch Sass.
+    /// </summary>
+    /// <param name="fileSystem">File system abstraction.</param>
+    /// <param name="chmodProvider">Provider for setting executable permissions.</param>
+    /// <param name="platform">Target platform.</param>
+    /// <param name="runtimeDirectory">Optional explicit runtime directory. When set, it wins over <paramref name="runtimePacks"/>.</param>
+    /// <param name="runtimePacks">Runtime packs contributed by the referenced runtime packages.</param>
+    /// <param name="log">Optional sink for diagnostic messages about the selection.</param>
+    /// <returns>The command to launch Sass.</returns>
+    /// <exception cref="FileNotFoundException">No usable Sass executable could be found.</exception>
+    public static SassLaunchCommand ResolveSassLaunchCommand(
+        IFileSystem fileSystem,
+        IChmodProvider chmodProvider,
+        Platform platform,
+        string? runtimeDirectory = null,
+        IReadOnlyList<SassRuntimePack>? runtimePacks = null,
+        Action<string>? log = null)
     {
         // An explicit directory is a deliberate override, so it is never second-guessed against the packs.
         if (!string.IsNullOrEmpty(runtimeDirectory))
@@ -382,7 +421,7 @@ public static class SassRuntimeResolver
 
                 EnsureExecutablePermissions(fileSystem, chmodProvider, candidatePath, platform);
 
-                return candidatePath;
+                return CreateLaunchCommand(fileSystem, candidatePath, platform);
             }
 
             searched.Add(candidatePath);
@@ -396,7 +435,7 @@ public static class SassRuntimeResolver
     /// <summary>
     /// Resolves the Sass executable inside an explicitly configured runtimes directory.
     /// </summary>
-    private static string ResolveFromDirectory(
+    private static SassLaunchCommand ResolveFromDirectory(
         IFileSystem fileSystem,
         IChmodProvider chmodProvider,
         Platform platform,
@@ -417,7 +456,7 @@ public static class SassRuntimeResolver
 
         EnsureExecutablePermissions(fileSystem, chmodProvider, SassPath, platform);
 
-        return SassPath;
+        return CreateLaunchCommand(fileSystem, SassPath, platform);
     }
 
     /// <summary>
@@ -498,4 +537,7 @@ public static class SassRuntimeResolver
             ? info
             : throw new ArgumentException($"Unknown platform: {platform}", nameof(platform));
     }
+
+    private static string GetDartExecutableName(Platform platform) =>
+        platform is Platform.WindowsX64 or Platform.WindowsArm64 ? "dart.exe" : "dart";
 }

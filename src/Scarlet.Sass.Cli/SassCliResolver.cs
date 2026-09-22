@@ -58,8 +58,8 @@ internal sealed class SassCliResolver
         var executableName = SassRuntimeResolver.GetExecutableName(_platform);
         var embeddedPath = Path.Combine(_baseDirectory, "dart-sass", executableName);
 
-        SassResolution Build(string? path, SassSource source, string? failure = null) => new(
-            path,
+        SassResolution Build(SassLaunchCommand? command, SassSource source, string? failure = null) => new(
+            command?.DisplayPath,
             source,
             _platform,
             runtimeIdentifier,
@@ -67,7 +67,8 @@ internal sealed class SassCliResolver
             options.CacheRoot,
             options.RuntimeDirectory,
             embeddedPath,
-            failure);
+            failure,
+            command);
 
         // 1. An explicit override is a deliberate instruction: honour it or fail, never silently fall back.
         if (!string.IsNullOrEmpty(options.ExplicitSassPath))
@@ -82,7 +83,7 @@ internal sealed class SassCliResolver
 
             _chmodProvider.EnsureExecutablePermissions(options.ExplicitSassPath);
 
-            return Build(options.ExplicitSassPath, SassSource.Explicit);
+            return Build(SassRuntimeResolver.CreateLaunchCommand(_fileSystem, options.ExplicitSassPath, _platform), SassSource.Explicit);
         }
 
         // 2. The binary shipped inside this package - the whole point of the RID-specific packages.
@@ -92,7 +93,7 @@ internal sealed class SassCliResolver
             // the embedded binary is extracted 0644 and would fail with EACCES on the very first run.
             SassRuntimeResolver.EnsureExecutablePermissions(_fileSystem, _chmodProvider, embeddedPath, _platform);
 
-            return Build(embeddedPath, SassSource.Embedded);
+            return Build(SassRuntimeResolver.CreateLaunchCommand(_fileSystem, embeddedPath, _platform), SassSource.Embedded);
         }
 
         // 3. A previous download. Checked before constructing a downloader so the happy path stays cheap,
@@ -102,7 +103,7 @@ internal sealed class SassCliResolver
         {
             SassRuntimeResolver.EnsureExecutablePermissions(_fileSystem, _chmodProvider, cachedPath, _platform);
 
-            return Build(cachedPath, SassSource.Cache);
+            return Build(SassRuntimeResolver.CreateLaunchCommand(_fileSystem, cachedPath, _platform), SassSource.Cache);
         }
 
         if (!allowDownload)
@@ -124,7 +125,9 @@ internal sealed class SassCliResolver
         // relative path, and then --scarlet-info would report a relative path on the run that downloaded
         // and an absolute one on every run after. Nothing breaks either way: a relative path still
         // launches, because the working directory is inherited and never changed.
-        return Build(Path.GetFullPath(downloadedPath), SassSource.Downloaded);
+        return Build(
+            SassRuntimeResolver.CreateLaunchCommand(_fileSystem, Path.GetFullPath(downloadedPath), _platform),
+            SassSource.Downloaded);
     }
 
     private static bool CanUseEmbedded(SassCliOptions options)

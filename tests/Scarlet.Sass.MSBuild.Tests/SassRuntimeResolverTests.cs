@@ -115,6 +115,34 @@ public class SassRuntimeResolverTests
     }
 
     [Fact]
+    public void ResolveSassLaunchCommand_WithOfficialBundle_ShouldLaunchDartDirectly()
+    {
+        // Arrange
+        var platform = Platform.WindowsX64;
+        var runtimesPath = "/packs/win-x64/runtimes";
+        var launcher = SassRuntimeResolver.GetExecutablePath(runtimesPath, platform);
+        var bundleDirectory = Path.GetDirectoryName(launcher)!;
+        var dart = Path.Combine(bundleDirectory, "src", "dart.exe");
+        var snapshot = Path.Combine(bundleDirectory, "src", "sass.snapshot");
+        var fileSystem = new MockFileSystem();
+        fileSystem.AddFile(launcher, new MockFileData("sass"));
+        fileSystem.AddFile(dart, new MockFileData("dart"));
+        fileSystem.AddFile(snapshot, new MockFileData("snapshot"));
+
+        // Act
+        var result = SassRuntimeResolver.ResolveSassLaunchCommand(
+            fileSystem,
+            NoOpChmodProvider.Instance,
+            platform,
+            runtimeDirectory: runtimesPath);
+
+        // Assert
+        Assert.Equal(launcher, result.DisplayPath);
+        Assert.Equal(dart, result.FileName);
+        Assert.Equal(new[] { snapshot }, result.Arguments);
+    }
+
+    [Fact]
     public void ResolveSassExecutable_WithExplicitDirectory_ShouldIgnorePacks()
     {
         // Arrange - an explicit SassRuntimeDirectory is a deliberate override
