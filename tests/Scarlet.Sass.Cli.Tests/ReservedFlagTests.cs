@@ -132,7 +132,7 @@ public class ReservedFlagTests
 
         // Assert - it reports the URL it *would* use rather than fetching it
         Assert.Equal(0, result);
-        Assert.Contains("https://github.com/oven-sh/Sass/releases", stdout.ToString());
+        Assert.Contains("https://github.com/sass/dart-sass/releases", stdout.ToString());
     }
 
     private static SassCliApplication Create(
@@ -144,7 +144,7 @@ public class ReservedFlagTests
         const string toolDirectory = "/tool";
 
         var fileSystem = new MockFileSystem();
-        fileSystem.AddFile(Path.Combine(toolDirectory, "Sass"), new MockFileData("Sass"));
+        fileSystem.AddFile(Path.Combine(toolDirectory, "dart-sass", "sass"), new MockFileData("Sass"));
 
         variables ??= new Dictionary<string, string> { [SassCliOptions.CacheVariable] = "/cache" };
 

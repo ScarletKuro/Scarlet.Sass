@@ -13,8 +13,8 @@ public class SassCliResolverTests
     {
         // Arrange
         var fileSystem = new MockFileSystem();
-        var embedded = Path.Combine(ToolDirectory, "Sass");
-        fileSystem.AddFile(embedded, new MockFileData("Sass"));
+        var embedded = Path.Combine(ToolDirectory, "dart-sass", "sass");
+        fileSystem.AddFile(embedded, new MockFileData("sass"));
 
         // Act
         var resolution = Resolve(fileSystem, out _);
@@ -30,8 +30,8 @@ public class SassCliResolverTests
         // Arrange - NuGet packages carry no Unix permission bits, so without this the first run on Linux or
         // macOS fails with EACCES
         var fileSystem = new MockFileSystem();
-        var embedded = Path.Combine(ToolDirectory, "Sass");
-        fileSystem.AddFile(embedded, new MockFileData("Sass"));
+        var embedded = Path.Combine(ToolDirectory, "dart-sass", "sass");
+        fileSystem.AddFile(embedded, new MockFileData("sass"));
 
         // Act
         Resolve(fileSystem, out var chmod);
@@ -41,13 +41,31 @@ public class SassCliResolverTests
     }
 
     [Fact]
+    public void Resolve_WithEmbeddedBinaryAndNestedDartRuntime_ShouldMakeBothExecutable()
+    {
+        // Arrange - the "sass" launcher script execs into a nested "src/dart" binary, which needs its own
+        // executable bit; only chmod'ing the launcher would still fail with EACCES on the very first run.
+        var fileSystem = new MockFileSystem();
+        var embedded = Path.Combine(ToolDirectory, "dart-sass", "sass");
+        var dartRuntime = Path.Combine(Path.GetDirectoryName(embedded)!, "src", "dart");
+        fileSystem.AddFile(embedded, new MockFileData("sass"));
+        fileSystem.AddFile(dartRuntime, new MockFileData("dart"));
+
+        // Act
+        Resolve(fileSystem, out var chmod);
+
+        // Assert
+        Assert.Equal(new[] { embedded, dartRuntime }, chmod.Paths);
+    }
+
+    [Fact]
     public void Resolve_WithCachedBinary_ShouldUseItWithoutDownloading()
     {
         // Arrange
         var fileSystem = new MockFileSystem();
         var options = CreateOptions();
         var cached = SassRuntimeResolver.GetExecutablePath(options.RuntimeDirectory, Platform.LinuxX64);
-        fileSystem.AddFile(cached, new MockFileData("Sass"));
+        fileSystem.AddFile(cached, new MockFileData("sass"));
 
         // Act
         var resolution = Resolve(fileSystem, out _, options);
@@ -62,7 +80,7 @@ public class SassCliResolverTests
     {
         // Arrange
         var fileSystem = new MockFileSystem();
-        fileSystem.AddFile(Path.Combine(ToolDirectory, "Sass"), new MockFileData("embedded"));
+        fileSystem.AddFile(Path.Combine(ToolDirectory, "dart-sass", "sass"), new MockFileData("embedded"));
         fileSystem.AddFile("/elsewhere/Sass", new MockFileData("explicit"));
 
         var options = CreateOptions(new Dictionary<string, string>
@@ -84,7 +102,7 @@ public class SassCliResolverTests
     {
         // Arrange - an explicit instruction that silently did something else would be worse than an error
         var fileSystem = new MockFileSystem();
-        fileSystem.AddFile(Path.Combine(ToolDirectory, "Sass"), new MockFileData("embedded"));
+        fileSystem.AddFile(Path.Combine(ToolDirectory, "dart-sass", "sass"), new MockFileData("embedded"));
 
         var options = CreateOptions(new Dictionary<string, string>
         {
@@ -105,7 +123,7 @@ public class SassCliResolverTests
     {
         // Arrange
         var fileSystem = new MockFileSystem();
-        fileSystem.AddFile(Path.Combine(ToolDirectory, "Sass"), new MockFileData("embedded"));
+        fileSystem.AddFile(Path.Combine(ToolDirectory, "dart-sass", "sass"), new MockFileData("embedded"));
 
         var options = CreateOptions(new Dictionary<string, string>
         {
@@ -126,7 +144,7 @@ public class SassCliResolverTests
         // Arrange - the embedded binary IS the pinned version, so honouring a different request means
         // bypassing it rather than silently ignoring the request
         var fileSystem = new MockFileSystem();
-        fileSystem.AddFile(Path.Combine(ToolDirectory, "Sass"), new MockFileData("embedded"));
+        fileSystem.AddFile(Path.Combine(ToolDirectory, "dart-sass", "sass"), new MockFileData("embedded"));
 
         var options = CreateOptions(new Dictionary<string, string>
         {

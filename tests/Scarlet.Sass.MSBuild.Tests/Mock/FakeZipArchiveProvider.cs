@@ -9,13 +9,23 @@ public sealed class FakeZipArchiveProvider : IZipArchiveProvider
     private readonly IFileSystem _fileSystem;
 
     public FakeZipArchiveProvider(IFileSystem fileSystem)
+        : this(fileSystem, new[] { "dart-sass/sass", "dart-sass/sass.bat" })
+    {
+    }
+
+    /// <param name="entryNames">
+    /// Overrides the archive's entry names, so tests can exercise the "expected executable missing" and
+    /// zip-slip paths without a real network response - <see cref="OpenRead"/> always reads from these
+    /// bytes rather than the file the downloader actually fetched.
+    /// </param>
+    public FakeZipArchiveProvider(IFileSystem fileSystem, IEnumerable<string> entryNames)
     {
         _fileSystem = fileSystem;
 
         using var ms = new MemoryStream();
         using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
         {
-            foreach (var name in new[] { "Sass", "Sass.exe" })
+            foreach (var name in entryNames)
             {
                 var entry = archive.CreateEntry(name);
                 using var entryStream = entry.Open();
@@ -44,3 +54,4 @@ public sealed class FakeZipArchiveProvider : IZipArchiveProvider
         entryStream.CopyTo(fileStream);
     }
 }
+

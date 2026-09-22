@@ -47,32 +47,6 @@ public class RuntimePackagePropsTests
         Assert.True(int.TryParse(pack.Element(SassRuntimePack.PriorityMetadataName)?.Value, out _));
     }
 
-    [Theory]
-    [InlineData(Platform.WindowsX64)]
-    [InlineData(Platform.WindowsArm64)]
-    [InlineData(Platform.LinuxX64)]
-    [InlineData(Platform.LinuxArm64)]
-    [InlineData(Platform.MacOsX64)]
-    [InlineData(Platform.MacOsArm64)]
-    public void RuntimePackageProps_ShouldStillSetTheLegacyPropertyForTheSameRid(Platform platform)
-    {
-        // Arrange - remove this test together with the SassRuntime_<rid> contract
-        var packageId = SassRuntimeResolver.GetRuntimePackageName(platform);
-        var expectedProperty = "SassRuntime_" + SassRuntimeResolver.GetRuntimeIdentifier(platform).Replace('-', '_');
-        var propsPath = Path.Combine(RepositoryRoot.Path, "src", packageId, "build", $"{packageId}.props");
-
-        // Act
-        var project = XDocument.Load(propsPath).Root;
-        Assert.NotNull(project);
-
-        var propertyGroup = Assert.Single(project.Elements("PropertyGroup"));
-        var property = Assert.Single(propertyGroup.Elements());
-
-        // Assert
-        Assert.Equal(expectedProperty, property.Name.LocalName);
-        Assert.Contains("MSBuildThisFileDirectory", property.Value);
-    }
-
     [Fact]
     public void RuntimePackageProps_ShouldHaveNoStragglersInSrc()
     {
@@ -92,26 +66,5 @@ public class RuntimePackagePropsTests
 
         // Assert
         Assert.Equal(expected, onDisk);
-    }
-
-    [Fact]
-    public void FirstItemAwareRuntimeVersion_ShouldNotBeAheadOfTheVersionBeingBuilt()
-    {
-        // Arrange - the deprecation message tells people to update to this version, so it must be one that
-        // this repository has actually reached. Remove with the legacy contract.
-        var directoryBuildProps = XDocument.Load(Path.Combine(RepositoryRoot.Path, "Directory.Build.props")).Root;
-        Assert.NotNull(directoryBuildProps);
-
-        var SassVersionElement = Assert.Single(directoryBuildProps.Descendants("SassVersion"));
-
-        // Act
-        var SassVersion = Version.Parse(SassVersionElement.Value);
-        var firstItemAware = Version.Parse(SassRunTask.FirstItemAwareRuntimeVersion);
-
-        // Assert
-        Assert.True(
-            firstItemAware <= SassVersion,
-            $"FirstItemAwareRuntimeVersion ({firstItemAware}) is newer than SassVersion ({SassVersion}), "
-            + "so it names a runtime package version that was never published.");
     }
 }

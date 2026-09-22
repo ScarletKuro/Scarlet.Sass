@@ -9,6 +9,7 @@
     <SassEmbedSources Condition="'$(SassEmbedSources)' == ''">Auto</SassEmbedSources>
     <SassQuietDeps Condition="'$(SassQuietDeps)' == ''">false</SassQuietDeps>
     <SassDownloadMutexTimeoutSeconds Condition="'$(SassDownloadMutexTimeoutSeconds)' == ''">300</SassDownloadMutexTimeoutSeconds>
+    <SassTimeoutMilliseconds Condition="'$(SassTimeoutMilliseconds)' == ''">0</SassTimeoutMilliseconds>
   </PropertyGroup>
 
   <UsingTask TaskName="Scarlet.Sass.MSBuild.SassCompileTask"
@@ -48,6 +49,7 @@
                      SassRuntimeDownload="$(SassRuntimeDownload)"
                      SassVersionDownload="$(SassVersionDownload)"
                      DownloadMutexTimeoutSeconds="$(SassDownloadMutexTimeoutSeconds)"
+                     TimeoutMilliseconds="$(SassTimeoutMilliseconds)"
                      RuntimePacks="@(SassRuntimePack)">
       <Output TaskParameter="GeneratedFiles" ItemName="_SassGeneratedFiles" />
       <Output TaskParameter="RemovedFiles" ItemName="_SassRemovedFiles" />

@@ -20,15 +20,11 @@ public class GitHubLatestVersionResolverIntegrationTests
     [Fact]
     public async Task TryResolveVersionAsync_AgainstRealGitHub_ShouldResolveAConcreteVersion()
     {
-        var platform = SassRuntimeResolver.GetCurrentPlatform();
-        var platformName = SassRuntimeResolver.GetDownloadName(platform);
-        var latestUrl = $"https://github.com/oven-sh/Sass/releases/latest/download/{platformName}.zip";
-
         var resolver = new GitHubLatestVersionResolver();
 
-        var resolvedVersion = await resolver.TryResolveVersionAsync(latestUrl);
+        var resolvedVersion = await resolver.TryResolveVersionAsync("https://github.com/sass/dart-sass/releases/latest");
 
-        _output.WriteLine($"Resolved '{latestUrl}' to version: {resolvedVersion}");
+        _output.WriteLine($"Resolved to version: {resolvedVersion}");
 
         Assert.NotNull(resolvedVersion);
         Assert.Matches(new Regex(@"^\d+\.\d+\.\d+"), resolvedVersion);

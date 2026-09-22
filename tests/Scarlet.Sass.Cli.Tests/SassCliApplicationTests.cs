@@ -43,7 +43,7 @@ public class SassCliApplicationTests
     {
         // Arrange - tests/e2e/cli-tool/verify.sh greps for this exact wording to prove which Sass ran
         var fileSystem = new MockFileSystem();
-        fileSystem.AddFile("/tool/Sass", new MockFileData("Sass"));
+        fileSystem.AddFile("/tool/dart-sass/sass", new MockFileData("Sass"));
 
         var stdout = new StringWriter();
         var stderr = new StringWriter();
@@ -75,7 +75,7 @@ public class SassCliApplicationTests
     {
         // Arrange
         var fileSystem = new MockFileSystem();
-        fileSystem.AddFile("/tool/Sass", new MockFileData("Sass"));
+        fileSystem.AddFile("/tool/dart-sass/sass", new MockFileData("Sass"));
 
         var stderr = new StringWriter();
         var application = Create(fileSystem, new RecordingProcessLauncher(), stderr: stderr);
@@ -93,7 +93,7 @@ public class SassCliApplicationTests
         // Arrange - the file exists but the OS refuses to exec it: a missing exec bit, a corrupt download,
         // or a binary for the wrong architecture
         var fileSystem = new MockFileSystem();
-        fileSystem.AddFile("/tool/Sass", new MockFileData("Sass"));
+        fileSystem.AddFile("/tool/dart-sass/sass", new MockFileData("Sass"));
 
         var stderr = new StringWriter();
         var application = Create(fileSystem, new ThrowingProcessLauncher(), stderr: stderr);

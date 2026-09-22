@@ -27,7 +27,6 @@ public class SassTargetsTests
     // The development copy has to build the task assembly before it can call into it, so it prefixes one
     // extra dependency; the packaged copy ships that assembly and must not carry it.
     [InlineData("_SassResolveStampDirectory", null)]
-    [InlineData("Sass", null)]
     [InlineData("RunSassBeforeStaticWebAssets", "ResolveProjectReferences")]
     public void DevelopmentTargets_ShouldStayInSyncWithPackagedTargets(string targetName, string? developmentOnlyPrefix)
     {

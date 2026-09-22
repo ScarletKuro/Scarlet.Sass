@@ -49,11 +49,11 @@ public class SassRuntimeResolverTests
     }
 
     [Theory]
-    [InlineData(Platform.WindowsX64, "win-x64", "Sass.exe")]
-    [InlineData(Platform.LinuxX64, "linux-x64", "Sass")]
-    [InlineData(Platform.LinuxArm64, "linux-arm64", "Sass")]
-    [InlineData(Platform.MacOsX64, "osx-x64", "Sass")]
-    [InlineData(Platform.MacOsArm64, "osx-arm64", "Sass")]
+    [InlineData(Platform.WindowsX64, "win-x64", "sass.bat")]
+    [InlineData(Platform.LinuxX64, "linux-x64", "sass")]
+    [InlineData(Platform.LinuxArm64, "linux-arm64", "sass")]
+    [InlineData(Platform.MacOsX64, "osx-x64", "sass")]
+    [InlineData(Platform.MacOsArm64, "osx-arm64", "sass")]
     public void ResolveSassExecutable_WithValidFile_ShouldReturnPath(
         Platform platform,
         string runtimeId,
@@ -61,7 +61,7 @@ public class SassRuntimeResolverTests
     {
         // Arrange
         var runtimeDirectory = "/runtime";
-        var expectedPath = Path.GetFullPath(Path.Combine(runtimeDirectory, runtimeId, "native", executableName));
+        var expectedPath = Path.GetFullPath(Path.Combine(runtimeDirectory, runtimeId, "native", "dart-sass", executableName));
 
         var mockFileSystem = new MockFileSystem();
         mockFileSystem.AddFile(expectedPath, new MockFileData("fake executable"));
@@ -343,14 +343,14 @@ public class SassRuntimeResolverTests
     }
 
     [Theory]
-    [InlineData(Platform.WindowsArm64, "win-arm64", "Sass.exe")]
-    [InlineData(Platform.MacOsX64, "osx-x64", "Sass")]
+    [InlineData(Platform.WindowsArm64, "win-arm64", "sass.bat")]
+    [InlineData(Platform.MacOsX64, "osx-x64", "sass")]
     public void GetExecutablePath_ShouldFollowTheRuntimePackLayout(Platform platform, string rid, string executableName)
     {
         // Act
         var result = SassRuntimeResolver.GetExecutablePath("/packs/runtimes", platform);
 
         // Assert
-        Assert.Equal(Path.GetFullPath(Path.Combine("/packs/runtimes", rid, "native", executableName)), result);
+        Assert.Equal(Path.GetFullPath(Path.Combine("/packs/runtimes", rid, "native", "dart-sass", executableName)), result);
     }
 }

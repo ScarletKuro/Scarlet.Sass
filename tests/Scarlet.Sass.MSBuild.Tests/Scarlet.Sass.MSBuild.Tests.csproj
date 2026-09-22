@@ -28,9 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="**\*.cs" />
-    <Compile Include="SassContractTests.cs" />
-    <Compile Include="TaskPackagingTests.cs" />
     <!-- Shared across the unit and integration test projects; see tests/Shared. -->
     <Compile Include="..\Shared\*.cs" LinkBase="Shared" />
   </ItemGroup>

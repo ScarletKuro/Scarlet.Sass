@@ -1,5 +1,4 @@
 using System.IO.Abstractions.TestingHelpers;
-using System.Security.Cryptography;
 using RichardSzalay.MockHttp;
 using Scarlet.Sass.Cli.Tests.Mock;
 
@@ -12,6 +11,10 @@ namespace Scarlet.Sass.Cli.Tests;
 /// Driven through a real <c>SassDownloader</c> over a mocked transport rather than a stubbed one, because
 /// what is worth checking is that the resolver hands it the right directory and version - and the
 /// directory is version-scoped precisely so a later version request is not served the earlier binary.
+/// Uses <see cref="Platform.WindowsX64"/> throughout so the archive goes through the mocked
+/// <see cref="IZipArchiveProvider"/>; Dart Sass ships every other platform as a <c>.tar.gz</c>, which
+/// <see cref="Scarlet.Sass.Core.SassDownloader"/> reads with its own tar/gzip code rather than that
+/// abstraction, and is covered separately in <c>SassDownloaderTests</c>.
 /// </remarks>
 public class SassCliDownloadTests
 {
@@ -24,11 +27,7 @@ public class SassCliDownloadTests
     private static readonly string ToolDirectory = Path.Combine(TestRoot, "tool");
     private static readonly string CacheRoot = Path.Combine(TestRoot, "cache");
 
-    // Platform.LinuxX64's archive name (SassRuntimeResolver.GetDownloadName) - checksum verification looks
-    // up this exact filename in the mocked SHASUMS256.txt.
-    private const string ArchiveFileName = "Sass-linux-x64.zip";
-    private static readonly byte[] ArchiveBytes = [1, 2, 3];
-    private static readonly string ArchiveSha256 = Convert.ToHexString(SHA256.HashData(ArchiveBytes)).ToLowerInvariant();
+    private const string GithubReleasesUrl = "https://github.com/sass/dart-sass/releases";
 
     [Fact]
     public void Resolve_WithNothingCached_ShouldDownloadAndReportItAsDownloaded()
@@ -37,9 +36,8 @@ public class SassCliDownloadTests
         var fileSystem = new MockFileSystem();
         using var handler = new MockHttpMessageHandler();
 
-        MockChecksums(handler, "https://github.com/oven-sh/Sass/releases/download/Sass-v1.4.2/SHASUMS256.txt");
-        handler.When("https://github.com/oven-sh/Sass/releases/download/Sass-v1.4.2/*")
-            .Respond("application/zip", new MemoryStream(ArchiveBytes));
+        handler.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-windows-x64.zip")
+            .Respond("application/zip", new MemoryStream(new byte[] { 1, 2, 3 }));
 
         // Act
         var resolution = Resolve(fileSystem, handler, version: "1.4.2");
@@ -47,7 +45,7 @@ public class SassCliDownloadTests
         // Assert
         Assert.Equal(SassSource.Downloaded, resolution.Source);
         Assert.Equal(
-            SassRuntimeResolver.GetExecutablePath(Path.Combine(CacheRoot, "runtimes", "1.4.2"), Platform.LinuxX64),
+            SassRuntimeResolver.GetExecutablePath(Path.Combine(CacheRoot, "runtimes", "1.4.2"), Platform.WindowsX64),
             resolution.ExecutablePath);
         Assert.True(fileSystem.File.Exists(resolution.ExecutablePath!));
     }
@@ -60,9 +58,8 @@ public class SassCliDownloadTests
         var fileSystem = new MockFileSystem();
         using var handler = new MockHttpMessageHandler();
 
-        MockChecksums(handler, "https://github.com/oven-sh/Sass/releases/download/Sass-v1.3.6/SHASUMS256.txt");
-        handler.When("https://github.com/oven-sh/Sass/releases/download/Sass-v1.3.6/*")
-            .Respond("application/zip", new MemoryStream(ArchiveBytes));
+        handler.When($"{GithubReleasesUrl}/download/1.3.6/dart-sass-1.3.6-windows-x64.zip")
+            .Respond("application/zip", new MemoryStream(new byte[] { 1, 2, 3 }));
 
         // Act
         var resolution = Resolve(fileSystem, handler, version: "1.3.6");
@@ -80,23 +77,16 @@ public class SassCliDownloadTests
         var fileSystem = new MockFileSystem();
         using var handler = new MockHttpMessageHandler();
 
-        MockChecksums(handler, "https://github.com/oven-sh/Sass/releases/latest/download/SHASUMS256.txt");
-
         // Expect, not When: this asserts the URL shape rather than merely tolerating it
-        handler.Expect("https://github.com/oven-sh/Sass/releases/latest/download/Sass-linux-x64.zip")
-            .Respond("application/zip", new MemoryStream(ArchiveBytes));
+        handler.Expect($"{GithubReleasesUrl}/download/1.5.0/dart-sass-1.5.0-windows-x64.zip")
+            .Respond("application/zip", new MemoryStream(new byte[] { 1, 2, 3 }));
 
         // Act
-        var resolution = Resolve(fileSystem, handler, version: SassCliOptions.LatestVersion);
+        var resolution = Resolve(fileSystem, handler, version: SassCliOptions.LatestVersion, resolvedLatestVersion: "1.5.0");
 
         // Assert
         handler.VerifyNoOutstandingExpectation();
         Assert.Equal(SassSource.Downloaded, resolution.Source);
-    }
-
-    private static void MockChecksums(MockHttpMessageHandler handler, string checksumsUrl)
-    {
-        handler.When(checksumsUrl).Respond("text/plain", $"{ArchiveSha256}  {ArchiveFileName}\n");
     }
 
     [Fact]
@@ -106,7 +96,7 @@ public class SassCliDownloadTests
         var fileSystem = new MockFileSystem();
         using var handler = new MockHttpMessageHandler();
 
-        handler.When("https://github.com/oven-sh/Sass/releases/download/*")
+        handler.When($"{GithubReleasesUrl}/download/9.9.9/dart-sass-9.9.9-windows-x64.zip")
             .Respond(System.Net.HttpStatusCode.NotFound);
 
         // Act & Assert - the application turns this into exit code 127 with the message attached
@@ -114,7 +104,11 @@ public class SassCliDownloadTests
         Assert.Contains("9.9.9", exception.Message);
     }
 
-    private static SassResolution Resolve(MockFileSystem fileSystem, MockHttpMessageHandler handler, string version)
+    private static SassResolution Resolve(
+        MockFileSystem fileSystem,
+        MockHttpMessageHandler handler,
+        string version,
+        string? resolvedLatestVersion = null)
     {
         var options = SassCliOptions.FromEnvironment(
             new FakeEnvironmentProvider(new Dictionary<string, string>
@@ -127,11 +121,11 @@ public class SassCliDownloadTests
         var resolver = new SassCliResolver(
             fileSystem,
             NoOpChmodProvider.Instance,
-            Platform.LinuxX64,
+            Platform.WindowsX64,
             ToolDirectory,
             (platform, log) => new SassDownloader(
                 new HttpClient(handler),
-                new FakeLatestVersionResolver(resolvedVersion: null),
+                new FakeLatestVersionResolver(resolvedLatestVersion),
                 fileSystem,
                 new FakeZipArchiveProvider(fileSystem),
                 NoOpChmodProvider.Instance,
@@ -148,3 +142,4 @@ public class SassCliDownloadTests
         }
     }
 }
+

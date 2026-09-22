@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Scarlet.Sass.Core;
@@ -18,6 +19,7 @@ namespace Scarlet.Sass.MSBuild;
 public sealed class SassCompileTask : Task
 {
     private const int DiagnosticTailLineCount = 50;
+    private const int OutputDrainGraceMilliseconds = 5000;
 
     [Required]
     public ITaskItem[] Compilations { get; set; } = Array.Empty<ITaskItem>();
@@ -42,6 +44,12 @@ public sealed class SassCompileTask : Task
     public int DownloadMutexTimeoutSeconds { get; set; } = 300;
     public ITaskItem[]? RuntimePacks { get; set; }
 
+    /// <summary>
+    /// Maximum time, in milliseconds, to wait for each `sass` invocation before killing it. Zero (the
+    /// default) waits indefinitely, matching the pre-existing behavior.
+    /// </summary>
+    public int TimeoutMilliseconds { get; set; } = 0;
+
     [Output]
     public ITaskItem[] GeneratedFiles { get; private set; } = Array.Empty<ITaskItem>();
 
@@ -50,6 +58,11 @@ public sealed class SassCompileTask : Task
 
     public override bool Execute()
     {
+        // Closed on every exit path. A handler firing after the task has returned - possible whenever the
+        // drain grace expires - would otherwise log into a finished task, which MSBuild turns into an
+        // exception that AsyncStreamReader rethrows on a thread-pool thread, killing the build process.
+        var gate = new TaskLifetimeGate();
+
         try
         {
             var fileSystem = new FileSystem();
@@ -111,7 +124,7 @@ public sealed class SassCompileTask : Task
                 var arguments = BuildArguments(groupedEntries[0].Settings, groupedEntries);
                 Log.LogMessage(MessageImportance.High, $"Executing: sass {arguments}");
 
-                var result = RunProcess(sassPath, arguments);
+                var result = RunProcess(sassPath, arguments, gate);
                 if (result.ExitCode != 0)
                 {
                     Log.LogError($"Sass command failed with exit code {result.ExitCode}");
@@ -147,6 +160,10 @@ public sealed class SassCompileTask : Task
         {
             Log.LogErrorFromException(ex, true);
             return false;
+        }
+        finally
+        {
+            gate.Close();
         }
     }
 
@@ -377,7 +394,7 @@ public sealed class SassCompileTask : Task
         return string.Join(" ", args);
     }
 
-    private ProcessResult RunProcess(string sassPath, string arguments)
+    private ProcessResult RunProcess(string sassPath, string arguments, TaskLifetimeGate gate)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -397,28 +414,75 @@ public sealed class SassCompileTask : Task
         var output = new OutputCollector(DiagnosticTailLineCount, captureAll: false);
         var error = new OutputCollector(DiagnosticTailLineCount, captureAll: false);
 
+        // Declared out here, not beside the handlers that use them: a `using` inside the try disposes as
+        // control leaves the try, which is before the finally closes the gate - leaving a window where a late
+        // handler could pass the gate and signal a disposed event. At method scope they outlive the gate.
+        using var outputClosed = new ManualResetEventSlim(false);
+        using var errorClosed = new ManualResetEventSlim(false);
+
+        // Neither handler may touch `process`. It is disposed as control leaves this method, while these can
+        // still fire, so reaching for something like process.Id here would hit a disposed object on a
+        // thread-pool thread - which terminates the build. Nothing tests this; it only holds by inspection.
         process.OutputDataReceived += (_, e) =>
         {
-            if (e.Data is not null)
+            if (e.Data is null)
             {
-                output.Add(e.Data);
-                Log.LogMessage(MessageImportance.Normal, e.Data);
+                // ReSharper disable once AccessToDisposedClosure
+                gate.TryRun(outputClosed.Set);
+                return;
             }
+
+            output.Add(e.Data);
+            gate.TryRun(() => Log.LogMessage(MessageImportance.Normal, e.Data));
         };
         process.ErrorDataReceived += (_, e) =>
         {
-            if (e.Data is not null)
+            if (e.Data is null)
             {
-                error.Add(e.Data);
-                Log.LogMessage(MessageImportance.High, e.Data);
+                // ReSharper disable once AccessToDisposedClosure
+                gate.TryRun(errorClosed.Set);
+                return;
             }
+
+            error.Add(e.Data);
+            gate.TryRun(() => Log.LogMessage(MessageImportance.High, e.Data));
         };
 
         ProcessStartRetry.Start(process, new MsBuildSassLogger(Log));
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
-        process.WaitForExit();
-        process.WaitForExit();
+
+        if (TimeoutMilliseconds > 0)
+        {
+            if (!process.WaitForExit(TimeoutMilliseconds))
+            {
+                try
+                {
+                    process.Kill();
+                }
+                catch
+                {
+                    // Ignore if process already exited
+                }
+
+                throw new TimeoutException($"Sass command timed out after {TimeoutMilliseconds}ms");
+            }
+
+            // The process is gone, but the handlers may not have drained. Waiting on the end-of-stream
+            // signals rather than the parameterless WaitForExit() keeps that wait bounded - a detached
+            // grandchild holding the write end can withhold EOF forever, outliving the timeout the caller
+            // asked for - and costs no extra thread to abandon when it does.
+            if (!(outputClosed.Wait(OutputDrainGraceMilliseconds) && errorClosed.Wait(OutputDrainGraceMilliseconds)))
+            {
+                Log.LogMessage(
+                    MessageImportance.Normal,
+                    $"Sass exited but its output was still open after {OutputDrainGraceMilliseconds}ms; some output may be missing.");
+            }
+        }
+        else
+        {
+            process.WaitForExit();
+        }
 
         return new ProcessResult(process.ExitCode, output.Tail, error.Tail);
     }

@@ -27,9 +27,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="**\*.cs" />
-    <Compile Include="Mock\*.cs" />
-    <Compile Include="SassCliSmokeTests.cs" />
     <Using Include="Xunit" />
     <Using Include="Scarlet.Sass.Core" />
     <Using Include="Scarlet.Sass.Core.Providers" />

@@ -30,6 +30,7 @@
                      SassRuntimeDownload="$(SassRuntimeDownload)"
                      SassVersionDownload="$(SassVersionDownload)"
                      DownloadMutexTimeoutSeconds="$(SassDownloadMutexTimeoutSeconds)"
+                     TimeoutMilliseconds="$(SassTimeoutMilliseconds)"
                      RuntimePacks="@(SassRuntimePack)">
       <Output TaskParameter="GeneratedFiles" ItemName="_SassGeneratedFiles" />
       <Output TaskParameter="RemovedFiles" ItemName="_SassRemovedFiles" />

@@ -15,5 +15,6 @@
     <SassVersionDownload Condition="'$(SassVersionDownload)' == ''"></SassVersionDownload>
     <SassDownloadMutexTimeoutSeconds Condition="'$(SassDownloadMutexTimeoutSeconds)' == ''">300</SassDownloadMutexTimeoutSeconds>
     <SassStampDirectory Condition="'$(SassStampDirectory)' == ''"></SassStampDirectory>
+    <SassTimeoutMilliseconds Condition="'$(SassTimeoutMilliseconds)' == ''">0</SassTimeoutMilliseconds>
   </PropertyGroup>
 </Project>

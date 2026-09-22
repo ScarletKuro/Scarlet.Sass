@@ -76,6 +76,7 @@ Sass partials whose file name starts with `_` are not entry points. They can sti
 | `SassVersionDownload` | empty | Version to download. Empty means the pinned package version. |
 | `SassDownloadMutexTimeoutSeconds` | `300` | Timeout for concurrent download coordination. |
 | `SassStampDirectory` | `$(IntermediateOutputPath)\Scarlet.Sass` | Settings stamp and generated-file manifest directory. |
+| `SassTimeoutMilliseconds` | `0` | Maximum time to wait for each `sass` invocation before killing it. `0` waits indefinitely. |
 
 ## Item Metadata
 

@@ -9,7 +9,7 @@ public sealed class FakeNoWriteZipArchiveProvider : IZipArchiveProvider
         var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
-            var entry = archive.CreateEntry("Sass-linux-x64/Sass");
+            var entry = archive.CreateEntry("dart-sass/sass");
             using var writer = new StreamWriter(entry.Open());
             writer.Write("Sass exists in archive");
         }

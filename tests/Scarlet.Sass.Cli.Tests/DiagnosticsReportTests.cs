@@ -41,7 +41,7 @@ public class DiagnosticsReportTests
 
         // Assert
         Assert.Contains("(not needed)", report);
-        Assert.DoesNotContain("https://github.com/oven-sh/Sass/releases", report);
+        Assert.DoesNotContain("https://github.com/sass/dart-sass/releases/download", report);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class DiagnosticsReportTests
         var report = DiagnosticsReport.ToText(resolution, CreateOptions());
 
         // Assert
-        Assert.Contains("https://github.com/oven-sh/Sass/releases/download/Sass-v1.4.2/Sass-linux-x64.zip", report);
+        Assert.Contains("https://github.com/sass/dart-sass/releases/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz", report);
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class DiagnosticsReportTests
         var report = DiagnosticsReport.ToText(resolution, CreateOptions());
 
         // Assert
-        Assert.Contains("releases/latest/download/Sass-linux-x64.zip", report);
+        Assert.Contains("https://github.com/sass/dart-sass/releases/latest", report);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class DiagnosticsReportTests
 
         Assert.Equal("embedded", root.GetProperty("source").GetString());
         Assert.Equal("linux-x64", root.GetProperty("runtimeIdentifier").GetString());
-        Assert.Equal("/tool/Sass", root.GetProperty("SassExecutable").GetString());
+        Assert.Equal("/tool/dart-sass/sass", root.GetProperty("SassExecutable").GetString());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("downloadUrl").ValueKind);
 
         var environment = root.GetProperty("environment");
@@ -175,7 +175,7 @@ public class DiagnosticsReportTests
         var root = document.RootElement;
 
         Assert.Equal(JsonValueKind.Null, root.GetProperty("SassExecutable").ValueKind);
-        Assert.Contains("Sass-v1.4.2", root.GetProperty("downloadUrl").GetString()!);
+        Assert.Contains("dart-sass-1.4.2", root.GetProperty("downloadUrl").GetString()!);
         Assert.Equal("nothing yet", root.GetProperty("failureReason").GetString());
     }
 
@@ -204,7 +204,7 @@ public class DiagnosticsReportTests
 
     private static SassResolution CreateResolution(
         SassSource source,
-        string? executablePath = "/tool/Sass",
+        string? executablePath = "/tool/dart-sass/sass",
         string version = "1.4.2",
         string? failureReason = null)
     {
@@ -216,7 +216,7 @@ public class DiagnosticsReportTests
             version,
             "/cache",
             $"/cache/runtimes/{version}",
-            "/tool/Sass",
+            "/tool/dart-sass/sass",
             failureReason);
     }
 

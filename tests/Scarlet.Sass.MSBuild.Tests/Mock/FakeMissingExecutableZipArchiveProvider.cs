@@ -9,7 +9,7 @@ public sealed class FakeMissingExecutableZipArchiveProvider : IZipArchiveProvide
         var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
-            var entry = archive.CreateEntry("Sass-linux-x64/not-Sass");
+            var entry = archive.CreateEntry("dart-sass/not-sass");
             using var writer = new StreamWriter(entry.Open());
             writer.Write("not Sass");
         }

@@ -44,17 +44,18 @@ public class PlatformTests
     }
 
     [Theory]
-    [InlineData(Platform.WindowsX64, "Sass-windows-x64")]
-    [InlineData(Platform.WindowsArm64, "Sass-windows-arm64")]
-    [InlineData(Platform.LinuxX64, "Sass-linux-x64")]
-    [InlineData(Platform.LinuxArm64, "Sass-linux-arm64")]
-    [InlineData(Platform.LinuxMuslX64, "Sass-linux-x64-musl")]
-    [InlineData(Platform.LinuxMuslArm64, "Sass-linux-arm64-musl")]
-    [InlineData(Platform.MacOsX64, "Sass-darwin-x64")]
-    [InlineData(Platform.MacOsArm64, "Sass-darwin-arm64")]
+    [InlineData(Platform.WindowsX64, "dart-sass")]
+    [InlineData(Platform.WindowsArm64, "dart-sass")]
+    [InlineData(Platform.LinuxX64, "dart-sass")]
+    [InlineData(Platform.LinuxArm64, "dart-sass")]
+    [InlineData(Platform.LinuxMuslX64, "dart-sass")]
+    [InlineData(Platform.LinuxMuslArm64, "dart-sass")]
+    [InlineData(Platform.MacOsX64, "dart-sass")]
+    [InlineData(Platform.MacOsArm64, "dart-sass")]
     public void GetRuntimeDirectoryName_ShouldReturnCorrectName(Platform platform, string expected)
     {
-        // Act
+        // Act - unlike the RID or download name, the extracted directory name is the same "dart-sass" on
+        // every platform: it comes from the archive's own top-level folder, not from any RID convention.
         var result = SassRuntimeResolver.GetRuntimeDirectoryName(platform);
 
         // Assert
@@ -106,14 +107,14 @@ public class PlatformTests
     }
 
     [Theory]
-    [InlineData(Platform.WindowsX64, "Sass.exe")]
-    [InlineData(Platform.WindowsArm64, "Sass.exe")]
-    [InlineData(Platform.LinuxX64, "Sass")]
-    [InlineData(Platform.LinuxArm64, "Sass")]
-    [InlineData(Platform.LinuxMuslX64, "Sass")]
-    [InlineData(Platform.LinuxMuslArm64, "Sass")]
-    [InlineData(Platform.MacOsX64, "Sass")]
-    [InlineData(Platform.MacOsArm64, "Sass")]
+    [InlineData(Platform.WindowsX64, "sass.bat")]
+    [InlineData(Platform.WindowsArm64, "sass.bat")]
+    [InlineData(Platform.LinuxX64, "sass")]
+    [InlineData(Platform.LinuxArm64, "sass")]
+    [InlineData(Platform.LinuxMuslX64, "sass")]
+    [InlineData(Platform.LinuxMuslArm64, "sass")]
+    [InlineData(Platform.MacOsX64, "sass")]
+    [InlineData(Platform.MacOsArm64, "sass")]
     public void GetExecutableName_ShouldReturnCorrectName(Platform platform, string expected)
     {
         // Act

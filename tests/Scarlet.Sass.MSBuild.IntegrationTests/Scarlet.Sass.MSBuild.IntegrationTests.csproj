@@ -27,9 +27,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="**\*.cs" />
-    <Compile Include="MockBuildEngine.cs" />
-    <Compile Include="SassCompileTaskIntegrationTests.cs" />
     <!-- Shared across the unit and integration test projects; see tests/Shared. -->
     <Compile Include="..\Shared\*.cs" LinkBase="Shared" />
   </ItemGroup>

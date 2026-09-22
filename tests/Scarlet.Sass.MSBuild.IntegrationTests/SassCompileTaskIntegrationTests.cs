@@ -90,6 +90,37 @@ public class SassCompileTaskIntegrationTests
         Assert.Contains(removedPath, secondTask.RemovedFiles.Select(static file => file.ItemSpec));
     }
 
+    [Fact]
+    public void CompileTask_WhenTimeoutElapses_KillsTheProcessAndFails()
+    {
+        using var workspace = TempWorkspace.Create("timeout");
+        workspace.WriteFile("Sass/site.scss", ".banner { color: red; }");
+
+        var item = new TaskItem("Sass");
+        item.SetMetadata("OutputPath", "wwwroot/css");
+
+        var buildEngine = new MockBuildEngine(_output);
+        var task = new SassCompileTask
+        {
+            BuildEngine = buildEngine,
+            Compilations = new[] { item },
+            ProjectDirectory = workspace.RootDirectory,
+            Configuration = "Debug",
+            OutputStyle = "Auto",
+            SourceMap = "Auto",
+            EmbedSources = "Auto",
+            QuietDeps = "false",
+            RuntimeDirectory = Path.Combine(RepositoryRoot.Path, "src", "Scarlet.Sass.MSBuild", "bin", "runtimes"),
+            // Shorter than the Dart VM needs to even start up, so this reliably fires without depending on
+            // how long compiling the (trivial) entry point itself takes.
+            TimeoutMilliseconds = 1
+        };
+
+        Assert.False(task.Execute());
+        Assert.Contains(buildEngine.Errors, e => e.Message != null && e.Message.Contains("timed out", StringComparison.OrdinalIgnoreCase));
+        Assert.False(File.Exists(workspace.PathTo("wwwroot", "css", "site.css")));
+    }
+
     private static SassCompileTask CreateTask(TempWorkspace workspace, TaskItem item)
     {
         return new SassCompileTask
