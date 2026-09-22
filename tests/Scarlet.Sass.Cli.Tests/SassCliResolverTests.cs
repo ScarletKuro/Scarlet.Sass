@@ -21,7 +21,7 @@ public class SassCliResolverTests
 
         // Assert
         Assert.Equal(SassSource.Embedded, resolution.Source);
-        Assert.Equal(embedded, resolution.ExecutablePath);
+        Assert.Equal(embedded, resolution.LauncherPath);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public class SassCliResolverTests
         var resolution = Resolve(fileSystem, out _);
 
         // Assert
-        Assert.Equal(embedded, resolution.ExecutablePath);
+        Assert.Equal(embedded, resolution.LauncherPath);
         Assert.NotNull(resolution.LaunchCommand);
         Assert.EndsWith(Path.Combine("dart-sass", "src", "dart"), resolution.LaunchCommand!.FileName);
         Assert.EndsWith(Path.Combine("dart-sass", "src", "sass.snapshot"), Assert.Single(resolution.LaunchCommand.Arguments));
@@ -87,7 +87,7 @@ public class SassCliResolverTests
         // Arrange
         var fileSystem = new MockFileSystem();
         var options = CreateOptions();
-        var cached = SassRuntimeResolver.GetExecutablePath(options.RuntimeDirectory, Platform.LinuxX64);
+        var cached = SassRuntimeResolver.GetLauncherPath(options.RuntimeDirectory, Platform.LinuxX64);
         fileSystem.AddFile(cached, new MockFileData("sass"));
 
         // Act
@@ -95,7 +95,7 @@ public class SassCliResolverTests
 
         // Assert
         Assert.Equal(SassSource.Cache, resolution.Source);
-        Assert.Equal(cached, resolution.ExecutablePath);
+        Assert.Equal(cached, resolution.LauncherPath);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public class SassCliResolverTests
 
         // Assert
         Assert.Equal(SassSource.Explicit, resolution.Source);
-        Assert.Equal("/elsewhere/Sass", resolution.ExecutablePath);
+        Assert.Equal("/elsewhere/Sass", resolution.LauncherPath);
     }
 
     [Fact]

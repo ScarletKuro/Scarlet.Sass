@@ -1,11 +1,11 @@
 namespace Scarlet.Sass.Cli;
 
 /// <summary>
-/// Where the Sass executable that is about to run came from.
+/// Where the Sass launcher came from.
 /// </summary>
 internal enum SassSource
 {
-    /// <summary>No Sass executable could be resolved.</summary>
+    /// <summary>No Sass launcher could be resolved.</summary>
     NotFound,
 
     /// <summary>Supplied by the user through <c>SCARLET_SASS_PATH</c>.</summary>

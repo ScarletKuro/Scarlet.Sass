@@ -7,19 +7,19 @@ public class SassRuntimeResolverTests
     private static MockFileSystem FileSystemWithSass(string runtimesPath, Platform platform)
     {
         var fileSystem = new MockFileSystem();
-        fileSystem.AddFile(SassRuntimeResolver.GetExecutablePath(runtimesPath, platform), new MockFileData("fake executable"));
+        fileSystem.AddFile(SassRuntimeResolver.GetLauncherPath(runtimesPath, platform), new MockFileData("fake executable"));
 
         return fileSystem;
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithNoRuntimeDirectory_ShouldThrowFileNotFoundException()
+    public void ResolveSassLauncher_WithNoRuntimeDirectory_ShouldThrowFileNotFoundException()
     {
         var platform = SassRuntimeResolver.GetCurrentPlatform();
 
         // Act & Assert
         var exception = Assert.Throws<FileNotFoundException>(() =>
-            SassRuntimeResolver.ResolveSassExecutable(
+            SassRuntimeResolver.ResolveSassLauncher(
                 new MockFileSystem(),
                 NoOpChmodProvider.Instance,
                 platform,
@@ -29,7 +29,7 @@ public class SassRuntimeResolverTests
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithMissingFile_ShouldThrowFileNotFoundException()
+    public void ResolveSassLauncher_WithMissingFile_ShouldThrowFileNotFoundException()
     {
         // Arrange
         var runtimeDirectory = "/runtime";
@@ -38,13 +38,13 @@ public class SassRuntimeResolverTests
 
         // Act & Assert
         var exception = Assert.Throws<FileNotFoundException>(() =>
-            SassRuntimeResolver.ResolveSassExecutable(
+            SassRuntimeResolver.ResolveSassLauncher(
                 mockFileSystem,
                 NoOpChmodProvider.Instance,
                 platform,
                 runtimeDirectory));
 
-        Assert.Contains("Sass executable not found at", exception.Message);
+        Assert.Contains("Sass launcher not found at", exception.Message);
         Assert.Contains("Scarlet.Sass.Runtime.linux-x64", exception.Message);
     }
 
@@ -54,20 +54,20 @@ public class SassRuntimeResolverTests
     [InlineData(Platform.LinuxArm64, "linux-arm64", "sass")]
     [InlineData(Platform.MacOsX64, "osx-x64", "sass")]
     [InlineData(Platform.MacOsArm64, "osx-arm64", "sass")]
-    public void ResolveSassExecutable_WithValidFile_ShouldReturnPath(
+    public void ResolveSassLauncher_WithValidFile_ShouldReturnPath(
         Platform platform,
         string runtimeId,
-        string executableName)
+        string launcherName)
     {
         // Arrange
         var runtimeDirectory = "/runtime";
-        var expectedPath = Path.GetFullPath(Path.Combine(runtimeDirectory, runtimeId, "native", "dart-sass", executableName));
+        var expectedPath = Path.GetFullPath(Path.Combine(runtimeDirectory, runtimeId, "native", "dart-sass", launcherName));
 
         var mockFileSystem = new MockFileSystem();
         mockFileSystem.AddFile(expectedPath, new MockFileData("fake executable"));
 
         // Act
-        var result = SassRuntimeResolver.ResolveSassExecutable(
+        var result = SassRuntimeResolver.ResolveSassLauncher(
             mockFileSystem,
             NoOpChmodProvider.Instance,
             platform,
@@ -78,20 +78,20 @@ public class SassRuntimeResolverTests
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithInvalidPath_ShouldThrowException()
+    public void ResolveSassLauncher_WithInvalidPath_ShouldThrowException()
     {
         var platform = SassRuntimeResolver.GetCurrentPlatform();
 
         // Act & Assert
         Assert.ThrowsAny<Exception>(() =>
-            SassRuntimeResolver.ResolveSassExecutable(
+            SassRuntimeResolver.ResolveSassLauncher(
                 new MockFileSystem(),
                 NoOpChmodProvider.Instance,
                 platform));
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithMatchingPack_ShouldReturnPathFromPack()
+    public void ResolveSassLauncher_WithMatchingPack_ShouldReturnPathFromPack()
     {
         // Arrange
         var platform = Platform.LinuxArm64;
@@ -103,7 +103,7 @@ public class SassRuntimeResolverTests
         var fileSystem = FileSystemWithSass("/packs/linux-arm64/runtimes", platform);
 
         // Act
-        var result = SassRuntimeResolver.ResolveSassExecutable(
+        var result = SassRuntimeResolver.ResolveSassLauncher(
             fileSystem,
             NoOpChmodProvider.Instance,
             platform,
@@ -111,7 +111,7 @@ public class SassRuntimeResolverTests
             runtimePacks: packs);
 
         // Assert
-        Assert.Equal(SassRuntimeResolver.GetExecutablePath("/packs/linux-arm64/runtimes", platform), result);
+        Assert.Equal(SassRuntimeResolver.GetLauncherPath("/packs/linux-arm64/runtimes", platform), result);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class SassRuntimeResolverTests
         // Arrange
         var platform = Platform.WindowsX64;
         var runtimesPath = "/packs/win-x64/runtimes";
-        var launcher = SassRuntimeResolver.GetExecutablePath(runtimesPath, platform);
+        var launcher = SassRuntimeResolver.GetLauncherPath(runtimesPath, platform);
         var bundleDirectory = Path.GetDirectoryName(launcher)!;
         var dart = Path.Combine(bundleDirectory, "src", "dart.exe");
         var snapshot = Path.Combine(bundleDirectory, "src", "sass.snapshot");
@@ -143,7 +143,7 @@ public class SassRuntimeResolverTests
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithExplicitDirectory_ShouldIgnorePacks()
+    public void ResolveSassLauncher_WithExplicitDirectory_ShouldIgnorePacks()
     {
         // Arrange - an explicit SassRuntimeDirectory is a deliberate override
         var platform = Platform.LinuxArm64;
@@ -151,7 +151,7 @@ public class SassRuntimeResolverTests
         var fileSystem = FileSystemWithSass("/explicit", platform);
 
         // Act
-        var result = SassRuntimeResolver.ResolveSassExecutable(
+        var result = SassRuntimeResolver.ResolveSassLauncher(
             fileSystem,
             NoOpChmodProvider.Instance,
             platform,
@@ -159,11 +159,11 @@ public class SassRuntimeResolverTests
             runtimePacks: packs);
 
         // Assert
-        Assert.Equal(SassRuntimeResolver.GetExecutablePath("/explicit", platform), result);
+        Assert.Equal(SassRuntimeResolver.GetLauncherPath("/explicit", platform), result);
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithHigherPriorityPack_ShouldPreferIt()
+    public void ResolveSassLauncher_WithHigherPriorityPack_ShouldPreferIt()
     {
         // Arrange
         var platform = Platform.LinuxX64;
@@ -174,10 +174,10 @@ public class SassRuntimeResolverTests
         };
 
         var fileSystem = FileSystemWithSass("/packs/baseline/runtimes", platform);
-        fileSystem.AddFile(SassRuntimeResolver.GetExecutablePath("/packs/custom/runtimes", platform), new MockFileData("fake executable"));
+        fileSystem.AddFile(SassRuntimeResolver.GetLauncherPath("/packs/custom/runtimes", platform), new MockFileData("fake executable"));
 
         // Act
-        var result = SassRuntimeResolver.ResolveSassExecutable(
+        var result = SassRuntimeResolver.ResolveSassLauncher(
             fileSystem,
             NoOpChmodProvider.Instance,
             platform,
@@ -185,11 +185,11 @@ public class SassRuntimeResolverTests
             runtimePacks: packs);
 
         // Assert
-        Assert.Equal(SassRuntimeResolver.GetExecutablePath("/packs/custom/runtimes", platform), result);
+        Assert.Equal(SassRuntimeResolver.GetLauncherPath("/packs/custom/runtimes", platform), result);
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithBestPackMissingItsBinary_ShouldFallBackToNextCandidate()
+    public void ResolveSassLauncher_WithBestPackMissingItsBinary_ShouldFallBackToNextCandidate()
     {
         // Arrange
         var platform = Platform.LinuxX64;
@@ -201,7 +201,7 @@ public class SassRuntimeResolverTests
         var fileSystem = FileSystemWithSass("/packs/baseline/runtimes", platform);
 
         // Act
-        var result = SassRuntimeResolver.ResolveSassExecutable(
+        var result = SassRuntimeResolver.ResolveSassLauncher(
             fileSystem,
             NoOpChmodProvider.Instance,
             platform,
@@ -209,18 +209,18 @@ public class SassRuntimeResolverTests
             runtimePacks: packs);
 
         // Assert
-        Assert.Equal(SassRuntimeResolver.GetExecutablePath("/packs/baseline/runtimes", platform), result);
+        Assert.Equal(SassRuntimeResolver.GetLauncherPath("/packs/baseline/runtimes", platform), result);
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithPackForAnotherHost_ShouldNameWhatIsInstalled()
+    public void ResolveSassLauncher_WithPackForAnotherHost_ShouldNameWhatIsInstalled()
     {
         // Arrange - the classic "wrong runtime package referenced" mistake
         var packs = new[] { new SassRuntimePack("Scarlet.Sass.Runtime.linux-x64", "linux-x64", "/packs/linux-x64/runtimes") };
 
         // Act
         var exception = Assert.Throws<FileNotFoundException>(() =>
-            SassRuntimeResolver.ResolveSassExecutable(
+            SassRuntimeResolver.ResolveSassLauncher(
                 new MockFileSystem(),
                 NoOpChmodProvider.Instance,
                 Platform.MacOsArm64,
@@ -235,14 +235,14 @@ public class SassRuntimeResolverTests
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithMatchingPackButNoBinary_ShouldListSearchedLocations()
+    public void ResolveSassLauncher_WithMatchingPackButNoBinary_ShouldListSearchedLocations()
     {
         // Arrange
         var packs = new[] { new SassRuntimePack("Scarlet.Sass.Runtime.darwin-arm64", "osx-arm64", "/packs/osx-arm64/runtimes") };
 
         // Act
         var exception = Assert.Throws<FileNotFoundException>(() =>
-            SassRuntimeResolver.ResolveSassExecutable(
+            SassRuntimeResolver.ResolveSassLauncher(
                 new MockFileSystem(),
                 NoOpChmodProvider.Instance,
                 Platform.MacOsArm64,
@@ -250,13 +250,13 @@ public class SassRuntimeResolverTests
                 runtimePacks: packs));
 
         // Assert
-        Assert.Contains("Sass executable not found at", exception.Message);
+        Assert.Contains("Sass launcher not found at", exception.Message);
         Assert.Contains("Scarlet.Sass.Runtime.darwin-arm64 (osx-arm64)", exception.Message);
-        Assert.Contains(SassRuntimeResolver.GetExecutablePath("/packs/osx-arm64/runtimes", Platform.MacOsArm64), exception.Message);
+        Assert.Contains(SassRuntimeResolver.GetLauncherPath("/packs/osx-arm64/runtimes", Platform.MacOsArm64), exception.Message);
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithMatchingPack_ShouldLogTheSelection()
+    public void ResolveSassLauncher_WithMatchingPack_ShouldLogTheSelection()
     {
         // Arrange
         var platform = Platform.WindowsX64;
@@ -265,7 +265,7 @@ public class SassRuntimeResolverTests
         var messages = new List<string>();
 
         // Act
-        SassRuntimeResolver.ResolveSassExecutable(
+        SassRuntimeResolver.ResolveSassLauncher(
             fileSystem,
             NoOpChmodProvider.Instance,
             platform,
@@ -312,7 +312,7 @@ public class SassRuntimeResolverTests
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithSeveralCandidates_ShouldLogHowManyWereConsidered()
+    public void ResolveSassLauncher_WithSeveralCandidates_ShouldLogHowManyWereConsidered()
     {
         // Arrange
         var platform = Platform.LinuxX64;
@@ -325,7 +325,7 @@ public class SassRuntimeResolverTests
         var messages = new List<string>();
 
         // Act
-        SassRuntimeResolver.ResolveSassExecutable(
+        SassRuntimeResolver.ResolveSassLauncher(
             fileSystem,
             NoOpChmodProvider.Instance,
             platform,
@@ -339,7 +339,7 @@ public class SassRuntimeResolverTests
     }
 
     [Fact]
-    public void ResolveSassExecutable_WithSeveralCandidatesAndNoBinary_ShouldListEveryLocation()
+    public void ResolveSassLauncher_WithSeveralCandidatesAndNoBinary_ShouldListEveryLocation()
     {
         // Arrange
         var packs = new[]
@@ -350,7 +350,7 @@ public class SassRuntimeResolverTests
 
         // Act
         var exception = Assert.Throws<FileNotFoundException>(() =>
-            SassRuntimeResolver.ResolveSassExecutable(
+            SassRuntimeResolver.ResolveSassLauncher(
                 new MockFileSystem(),
                 NoOpChmodProvider.Instance,
                 Platform.LinuxX64,
@@ -359,8 +359,8 @@ public class SassRuntimeResolverTests
 
         // Assert
         Assert.Contains("2 runtime packs target linux-x64", exception.Message);
-        Assert.Contains(SassRuntimeResolver.GetExecutablePath("/packs/custom/runtimes", Platform.LinuxX64), exception.Message);
-        Assert.Contains(SassRuntimeResolver.GetExecutablePath("/packs/baseline/runtimes", Platform.LinuxX64), exception.Message);
+        Assert.Contains(SassRuntimeResolver.GetLauncherPath("/packs/custom/runtimes", Platform.LinuxX64), exception.Message);
+        Assert.Contains(SassRuntimeResolver.GetLauncherPath("/packs/baseline/runtimes", Platform.LinuxX64), exception.Message);
     }
 
     [Fact]
@@ -373,12 +373,12 @@ public class SassRuntimeResolverTests
     [Theory]
     [InlineData(Platform.WindowsArm64, "win-arm64", "sass.bat")]
     [InlineData(Platform.MacOsX64, "osx-x64", "sass")]
-    public void GetExecutablePath_ShouldFollowTheRuntimePackLayout(Platform platform, string rid, string executableName)
+    public void GetLauncherPath_ShouldFollowTheRuntimePackLayout(Platform platform, string rid, string launcherName)
     {
         // Act
-        var result = SassRuntimeResolver.GetExecutablePath("/packs/runtimes", platform);
+        var result = SassRuntimeResolver.GetLauncherPath("/packs/runtimes", platform);
 
         // Assert
-        Assert.Equal(Path.GetFullPath(Path.Combine("/packs/runtimes", rid, "native", "dart-sass", executableName)), result);
+        Assert.Equal(Path.GetFullPath(Path.Combine("/packs/runtimes", rid, "native", "dart-sass", launcherName)), result);
     }
 }

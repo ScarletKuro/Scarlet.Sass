@@ -20,7 +20,7 @@ public class SassContractTests
         Platform platform,
         string rid,
         string downloadName,
-        string executableName,
+        string launcherName,
         string dartExecutableName,
         string archiveExtension)
     {
@@ -28,12 +28,12 @@ public class SassContractTests
         Assert.Equal("dart-sass", SassRuntimeResolver.GetRuntimeDirectoryName(platform));
         Assert.Equal(downloadName, SassRuntimeResolver.GetDownloadName(platform));
         Assert.Equal(archiveExtension, SassRuntimeResolver.GetArchiveExtension(platform));
-        Assert.Equal(executableName, SassRuntimeResolver.GetExecutableName(platform));
+        Assert.Equal(launcherName, SassRuntimeResolver.GetLauncherName(platform));
 
-        var executablePath = SassRuntimeResolver.GetExecutablePath("runtimes", platform);
-        var permissionPaths = SassRuntimeResolver.GetExecutablePermissionPaths(executablePath, platform);
+        var launcherPath = SassRuntimeResolver.GetLauncherPath("runtimes", platform);
+        var permissionPaths = SassRuntimeResolver.GetExecutablePermissionPaths(launcherPath, platform);
 
-        Assert.EndsWith(Path.Combine(rid, "native", "dart-sass", executableName), executablePath);
+        Assert.EndsWith(Path.Combine(rid, "native", "dart-sass", launcherName), launcherPath);
         Assert.EndsWith(Path.Combine(rid, "native", "dart-sass", "src", dartExecutableName), permissionPaths[1]);
     }
 
@@ -51,6 +51,28 @@ public class SassContractTests
                 Path.Combine("runtimes", "linux-x64", "native", "dart-sass", "src", "dart")
             },
             paths);
+    }
+
+    [Theory]
+    [InlineData(Platform.WindowsX64, "win-x64", "sass.bat", "dart.exe")]
+    [InlineData(Platform.WindowsArm64, "win-arm64", "sass.bat", "dart.exe")]
+    [InlineData(Platform.LinuxX64, "linux-x64", "sass", "dart")]
+    [InlineData(Platform.LinuxArm64, "linux-arm64", "sass", "dart")]
+    [InlineData(Platform.LinuxMuslX64, "linux-musl-x64", "sass", "dart")]
+    [InlineData(Platform.LinuxMuslArm64, "linux-musl-arm64", "sass", "dart")]
+    [InlineData(Platform.MacOsX64, "osx-x64", "sass", "dart")]
+    [InlineData(Platform.MacOsArm64, "osx-arm64", "sass", "dart")]
+    public void RuntimeProjects_DeclareTheOfficialDartSassLayout(
+        Platform platform,
+        string runtimeRid,
+        string launcherName,
+        string dartExecutableName)
+    {
+        var properties = LoadRuntimeProjectProperties(platform);
+
+        Assert.Equal(runtimeRid, properties["RuntimeRid"]);
+        Assert.Equal(launcherName, properties["SassLauncherName"]);
+        Assert.Equal(dartExecutableName, properties["SassDartExecutableName"]);
     }
 
     [Fact]
@@ -160,5 +182,29 @@ public class SassContractTests
 
         Assert.Equal("true", runtimeItem.Attribute("Pack")?.Value);
         Assert.Equal("runtimes/$(RuntimeRid)/native/dart-sass/", runtimeItem.Attribute("PackagePath")?.Value);
+    }
+
+    [Fact]
+    public void RuntimeTargets_ValidateTheFullOfficialDartSassLayout()
+    {
+        var targets = File.ReadAllText(Path.Combine(RepositoryRoot.Path, "build", "SassRuntime.targets"));
+
+        Assert.Contains("$(SassSourceDir)/$(SassLauncherName)", targets);
+        Assert.Contains("$(SassSourceDir)/src/$(SassDartExecutableName)", targets);
+        Assert.Contains("$(SassSourceDir)/src/sass.snapshot", targets);
+        Assert.Contains("$(RidOutputDir)/$(SassLauncherName)", targets);
+        Assert.Contains("$(RidOutputDir)/src/$(SassDartExecutableName)", targets);
+    }
+
+    private static Dictionary<string, string> LoadRuntimeProjectProperties(Platform platform)
+    {
+        var projectName = SassRuntimeResolver.GetRuntimePackageName(platform);
+        var projectPath = Path.Combine(RepositoryRoot.Path, "src", projectName, $"{projectName}.csproj");
+        var project = XDocument.Load(projectPath);
+
+        return project.Descendants()
+            .Where(static element => element.Parent?.Name.LocalName == "PropertyGroup")
+            .GroupBy(static element => element.Name.LocalName)
+            .ToDictionary(static group => group.Key, static group => group.Last().Value.Trim());
     }
 }

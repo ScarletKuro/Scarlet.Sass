@@ -37,6 +37,6 @@ public sealed class SassLaunchCommand
     /// <summary>
     /// Creates a command that launches the executable directly with no fixed arguments.
     /// </summary>
-    public static SassLaunchCommand FromExecutablePath(string executablePath) =>
-        new(executablePath, Array.Empty<string>(), executablePath);
+    public static SassLaunchCommand FromLauncherPath(string launcherPath) =>
+        new(launcherPath, Array.Empty<string>(), launcherPath);
 }

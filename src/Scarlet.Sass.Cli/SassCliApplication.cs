@@ -29,7 +29,7 @@ internal sealed class SassCliApplication
     /// <summary>
     /// Initializes a new instance of the <see cref="SassCliApplication"/> class.
     /// </summary>
-    /// <param name="resolver">Finds the Sass executable.</param>
+    /// <param name="resolver">Finds the Sass launcher.</param>
     /// <param name="launcher">Runs it.</param>
     /// <param name="options">Configuration read from the environment.</param>
     /// <param name="stdout">Standard output, used only by diagnostics.</param>
@@ -85,16 +85,17 @@ internal sealed class SassCliApplication
         {
             // Contract relied upon by tests/e2e/cli-tool: it is how a test proves which Sass actually ran,
             // and therefore that nothing was downloaded. Do not reword without updating that script.
-            _stderr.WriteLine($"Scarlet.Sass: using Sass at {resolution.ExecutablePath}");
+            _stderr.WriteLine($"Scarlet.Sass: using Sass at {resolution.LauncherPath}");
         }
 
         try
         {
-            return _launcher.Run(new SassLaunchRequest(resolution.GetLaunchCommand(), args));
+            return _launcher.Run(new SassLaunchRequest(resolution.LaunchCommand, args));
         }
         catch (Win32Exception exception)
         {
-            _stderr.WriteLine($"Scarlet.Sass: failed to start '{resolution.ExecutablePath}': {exception.Message}");
+            var command = resolution.LaunchCommand;
+            _stderr.WriteLine($"Scarlet.Sass: failed to start Sass command '{command.FileName}' for '{command.DisplayPath}': {exception.Message}");
 
             return ExitCodes.SassNotExecutable;
         }

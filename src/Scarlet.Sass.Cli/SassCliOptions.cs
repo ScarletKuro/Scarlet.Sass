@@ -13,7 +13,7 @@ namespace Scarlet.Sass.Cli;
 /// </remarks>
 internal sealed class SassCliOptions
 {
-    /// <summary>Name of the variable holding an explicit Sass executable path.</summary>
+    /// <summary>Name of the variable holding an explicit Sass launcher path.</summary>
     public const string PathVariable = "SCARLET_SASS_PATH";
 
     /// <summary>Name of the variable selecting which Sass version to resolve.</summary>
@@ -63,7 +63,7 @@ internal sealed class SassCliOptions
         DownloadTimeoutSeconds = downloadTimeoutSeconds;
     }
 
-    /// <summary>An explicit Sass executable supplied by the user, or <see langword="null"/>.</summary>
+    /// <summary>An explicit Sass launcher supplied by the user, or <see langword="null"/>.</summary>
     public string? ExplicitSassPath { get; }
 
     /// <summary>

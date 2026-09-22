@@ -45,9 +45,9 @@ public class SassCliDownloadTests
         // Assert
         Assert.Equal(SassSource.Downloaded, resolution.Source);
         Assert.Equal(
-            SassRuntimeResolver.GetExecutablePath(Path.Combine(CacheRoot, "runtimes", "1.4.2"), Platform.WindowsX64),
-            resolution.ExecutablePath);
-        Assert.True(fileSystem.File.Exists(resolution.ExecutablePath!));
+            SassRuntimeResolver.GetLauncherPath(Path.Combine(CacheRoot, "runtimes", "1.4.2"), Platform.WindowsX64),
+            resolution.LauncherPath);
+        Assert.True(fileSystem.File.Exists(resolution.LauncherPath!));
     }
 
     [Fact]

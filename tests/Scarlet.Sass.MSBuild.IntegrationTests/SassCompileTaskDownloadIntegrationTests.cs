@@ -52,9 +52,9 @@ public class SassCompileTaskDownloadIntegrationTests
             Assert.Contains(".banner", File.ReadAllText(cssPath));
 
             var platform = SassRuntimeResolver.GetCurrentPlatform();
-            var executablePath = SassRuntimeResolver.GetExecutablePath(tempRuntimeDirectory, platform);
-            Assert.True(File.Exists(executablePath), $"Expected the downloaded runtime at {executablePath}");
-            _output.WriteLine($"Runtime downloaded to: {executablePath}");
+            var launcherPath = SassRuntimeResolver.GetLauncherPath(tempRuntimeDirectory, platform);
+            Assert.True(File.Exists(launcherPath), $"Expected the downloaded runtime at {launcherPath}");
+            _output.WriteLine($"Runtime downloaded to: {launcherPath}");
         }
         finally
         {

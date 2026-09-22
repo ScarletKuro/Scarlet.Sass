@@ -9,7 +9,7 @@
 
     Metadata:
       Rid          - runtime identifier this pack serves. Required.
-      RuntimesPath - directory containing <rid>/native/dart-sass/<executable>. Required.
+      RuntimesPath - directory containing <rid>/native/dart-sass/<launcher>. Required.
       Variant      - Sass build variant, for diagnostics only.
       Priority     - higher wins when several packs serve the same Rid. Defaults to 0.
   -->

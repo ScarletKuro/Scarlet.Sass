@@ -15,7 +15,8 @@
 
     <!-- RID-specific settings -->
     <RuntimeRid>win-arm64</RuntimeRid>
-    <SassExecutableName>sass.bat</SassExecutableName>
+    <SassLauncherName>sass.bat</SassLauncherName>
+    <SassDartExecutableName>dart.exe</SassDartExecutableName>
 
     <!-- CI -->
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
@@ -49,7 +50,7 @@
     </None>
   </ItemGroup>
 
-  <!-- Downloads "Sass.exe" next to the .csproj if missing -->
+  <!-- Downloads the Dart Sass runtime folder next to the .csproj if missing -->
   <Target Name="DownloadSassIfMissing" BeforeTargets="Build">
     <PropertyGroup>
       <!-- Paths to helper scripts -->

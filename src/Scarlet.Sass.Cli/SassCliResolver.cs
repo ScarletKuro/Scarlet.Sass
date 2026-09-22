@@ -5,7 +5,7 @@ using Scarlet.Sass.Core.Providers;
 namespace Scarlet.Sass.Cli;
 
 /// <summary>
-/// Finds the Sass executable to run.
+/// Finds the Sass launcher to run.
 /// </summary>
 /// <remarks>
 /// Precedence is explicit override, then the binary embedded in this package, then the per-user download
@@ -43,7 +43,7 @@ internal sealed class SassCliResolver
     }
 
     /// <summary>
-    /// Resolves the Sass executable to run.
+    /// Resolves the Sass launcher to run.
     /// </summary>
     /// <param name="options">Configuration read from the environment.</param>
     /// <param name="allowDownload">
@@ -55,11 +55,11 @@ internal sealed class SassCliResolver
     public SassResolution Resolve(SassCliOptions options, bool allowDownload, ISassLogger log)
     {
         var runtimeIdentifier = SassRuntimeResolver.GetRuntimeIdentifier(_platform);
-        var executableName = SassRuntimeResolver.GetExecutableName(_platform);
-        var embeddedPath = Path.Combine(_baseDirectory, "dart-sass", executableName);
+        var launcherName = SassRuntimeResolver.GetLauncherName(_platform);
+        var embeddedPath = Path.Combine(_baseDirectory, "dart-sass", launcherName);
 
         SassResolution Build(SassLaunchCommand? command, SassSource source, string? failure = null) => new(
-            command?.DisplayPath,
+            command,
             source,
             _platform,
             runtimeIdentifier,
@@ -67,8 +67,7 @@ internal sealed class SassCliResolver
             options.CacheRoot,
             options.RuntimeDirectory,
             embeddedPath,
-            failure,
-            command);
+            failure);
 
         // 1. An explicit override is a deliberate instruction: honour it or fail, never silently fall back.
         if (!string.IsNullOrEmpty(options.ExplicitSassPath))
@@ -86,7 +85,7 @@ internal sealed class SassCliResolver
             return Build(SassRuntimeResolver.CreateLaunchCommand(_fileSystem, options.ExplicitSassPath, _platform), SassSource.Explicit);
         }
 
-        // 2. The binary shipped inside this package - the whole point of the RID-specific packages.
+        // 2. The Sass launcher shipped inside this package - the whole point of the RID-specific packages.
         if (CanUseEmbedded(options) && _fileSystem.File.Exists(embeddedPath))
         {
             // Mandatory, not defensive: NuGet packages carry no Unix permission bits, so on Linux and macOS
@@ -98,7 +97,7 @@ internal sealed class SassCliResolver
 
         // 3. A previous download. Checked before constructing a downloader so the happy path stays cheap,
         //    and so diagnostics can distinguish "cached" from "would download".
-        var cachedPath = SassRuntimeResolver.GetExecutablePath(options.RuntimeDirectory, _platform);
+        var cachedPath = SassRuntimeResolver.GetLauncherPath(options.RuntimeDirectory, _platform);
         if (_fileSystem.File.Exists(cachedPath))
         {
             SassRuntimeResolver.EnsureExecutablePermissions(_fileSystem, _chmodProvider, cachedPath, _platform);
@@ -108,7 +107,7 @@ internal sealed class SassCliResolver
 
         if (!allowDownload)
         {
-            return Build(null, SassSource.NotFound, "No Sass executable is present yet; it would be downloaded on the next run.");
+            return Build(null, SassSource.NotFound, "No Sass launcher is present yet; it would be downloaded on the next run.");
         }
 
         // 4. Download. SassDownloader handles cross-process races itself with a global mutex and an atomic
@@ -120,7 +119,7 @@ internal sealed class SassCliResolver
             options.DownloadTimeoutSeconds);
 
         // Normalised only so the reported path is stable. The cache branch above goes through
-        // GetExecutablePath, which canonicalises; the downloader does not. Every default cache root is
+        // GetLauncherPath, which canonicalises; the downloader does not. Every default cache root is
         // absolute, so the two agree anyway - they diverge only when SCARLET_SASS_CACHE_DIR is set to a
         // relative path, and then --scarlet-info would report a relative path on the run that downloaded
         // and an absolute one on every run after. Nothing breaks either way: a relative path still

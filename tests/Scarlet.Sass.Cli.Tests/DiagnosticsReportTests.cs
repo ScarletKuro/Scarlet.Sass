@@ -45,10 +45,45 @@ public class DiagnosticsReportTests
     }
 
     [Fact]
+    public void ToText_WhenLaunchCommandRunsDartDirectly_ShouldShowTheActualProcessCommand()
+    {
+        // Arrange
+        var resolution = CreateResolution(
+            SassSource.Embedded,
+            launcherPath: "/tool/dart-sass/sass",
+            processFile: "/tool/dart-sass/src/dart",
+            processArguments: ["/tool/dart-sass/src/sass.snapshot"]);
+
+        // Act
+        var report = DiagnosticsReport.ToText(resolution, CreateOptions());
+
+        // Assert
+        Assert.Contains("Sass launcher", report);
+        Assert.Contains("/tool/dart-sass/sass", report);
+        Assert.Contains("Process file", report);
+        Assert.Contains("/tool/dart-sass/src/dart", report);
+        Assert.Contains("Process arguments", report);
+        Assert.Contains("/tool/dart-sass/src/sass.snapshot", report);
+    }
+
+    [Fact]
+    public void ToText_WhenLaunchCommandUsesTheLauncher_ShouldShowNoFixedArguments()
+    {
+        // Act
+        var report = DiagnosticsReport.ToText(CreateResolution(SassSource.Explicit), CreateOptions());
+
+        // Assert
+        Assert.Contains("Process file", report);
+        Assert.Contains("/tool/dart-sass/sass", report);
+        Assert.Contains("Process arguments", report);
+        Assert.Contains("(none)", report);
+    }
+
+    [Fact]
     public void ToText_WhenNotResolved_ShouldNameTheExactArchiveItWouldFetch()
     {
         // Arrange
-        var resolution = CreateResolution(SassSource.NotFound, executablePath: null, version: "1.4.2");
+        var resolution = CreateResolution(SassSource.NotFound, launcherPath: null, version: "1.4.2");
 
         // Act
         var report = DiagnosticsReport.ToText(resolution, CreateOptions());
@@ -61,7 +96,7 @@ public class DiagnosticsReportTests
     public void ToText_WhenLatestIsRequested_ShouldPointAtTheLatestRelease()
     {
         // Arrange
-        var resolution = CreateResolution(SassSource.NotFound, executablePath: null, version: SassCliOptions.LatestVersion);
+        var resolution = CreateResolution(SassSource.NotFound, launcherPath: null, version: SassCliOptions.LatestVersion);
 
         // Act
         var report = DiagnosticsReport.ToText(resolution, CreateOptions());
@@ -149,7 +184,9 @@ public class DiagnosticsReportTests
 
         Assert.Equal("embedded", root.GetProperty("source").GetString());
         Assert.Equal("linux-x64", root.GetProperty("runtimeIdentifier").GetString());
-        Assert.Equal("/tool/dart-sass/sass", root.GetProperty("SassExecutable").GetString());
+        Assert.Equal("/tool/dart-sass/sass", root.GetProperty("sassLauncher").GetString());
+        Assert.Equal("/tool/dart-sass/sass", root.GetProperty("processFile").GetString());
+        Assert.Empty(root.GetProperty("processArguments").EnumerateArray());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("downloadUrl").ValueKind);
 
         var environment = root.GetProperty("environment");
@@ -165,7 +202,7 @@ public class DiagnosticsReportTests
     public void ToJson_WhenNotResolved_ShouldCarryTheDownloadUrlAndFailureReason()
     {
         // Arrange
-        var resolution = CreateResolution(SassSource.NotFound, executablePath: null, failureReason: "nothing yet");
+        var resolution = CreateResolution(SassSource.NotFound, launcherPath: null, failureReason: "nothing yet");
 
         // Act
         var json = DiagnosticsReport.ToJson(resolution, CreateOptions());
@@ -174,9 +211,35 @@ public class DiagnosticsReportTests
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
 
-        Assert.Equal(JsonValueKind.Null, root.GetProperty("SassExecutable").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("sassLauncher").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("processFile").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("processArguments").ValueKind);
         Assert.Contains("dart-sass-1.4.2", root.GetProperty("downloadUrl").GetString()!);
         Assert.Equal("nothing yet", root.GetProperty("failureReason").GetString());
+    }
+
+    [Fact]
+    public void ToJson_WhenLaunchCommandRunsDartDirectly_ShouldEmitProcessCommand()
+    {
+        // Arrange
+        var resolution = CreateResolution(
+            SassSource.Embedded,
+            launcherPath: "/tool/dart-sass/sass",
+            processFile: "/tool/dart-sass/src/dart",
+            processArguments: ["/tool/dart-sass/src/sass.snapshot"]);
+
+        // Act
+        var json = DiagnosticsReport.ToJson(resolution, CreateOptions());
+
+        // Assert
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+
+        Assert.Equal("/tool/dart-sass/sass", root.GetProperty("sassLauncher").GetString());
+        Assert.Equal("/tool/dart-sass/src/dart", root.GetProperty("processFile").GetString());
+        Assert.Equal(
+            "/tool/dart-sass/src/sass.snapshot",
+            Assert.Single(root.GetProperty("processArguments").EnumerateArray()).GetString());
     }
 
     [Fact]
@@ -204,12 +267,21 @@ public class DiagnosticsReportTests
 
     private static SassResolution CreateResolution(
         SassSource source,
-        string? executablePath = "/tool/dart-sass/sass",
+        string? launcherPath = "/tool/dart-sass/sass",
         string version = "1.4.2",
-        string? failureReason = null)
+        string? failureReason = null,
+        string? processFile = null,
+        IReadOnlyList<string>? processArguments = null)
     {
+        var launchCommand = launcherPath is null
+            ? null
+            : new SassLaunchCommand(
+                processFile ?? launcherPath,
+                processArguments ?? Array.Empty<string>(),
+                launcherPath);
+
         return new SassResolution(
-            executablePath,
+            launchCommand,
             source,
             Platform.LinuxX64,
             "linux-x64",

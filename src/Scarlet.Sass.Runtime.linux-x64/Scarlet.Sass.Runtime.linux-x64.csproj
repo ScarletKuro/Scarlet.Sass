@@ -15,7 +15,8 @@
 
     <!-- RID-specific settings -->
     <RuntimeRid>linux-x64</RuntimeRid>
-    <SassExecutableName>sass</SassExecutableName>
+    <SassLauncherName>sass</SassLauncherName>
+    <SassDartExecutableName>dart</SassDartExecutableName>
 
     <!-- CI -->
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>

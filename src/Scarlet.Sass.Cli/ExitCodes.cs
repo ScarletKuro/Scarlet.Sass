@@ -16,9 +16,9 @@ internal static class ExitCodes
     /// <summary>The command line was not understood by the tool itself.</summary>
     public const int UsageError = 64;
 
-    /// <summary>A Sass executable was found but could not be started.</summary>
+    /// <summary>A resolved Sass launch command was found but could not be started.</summary>
     public const int SassNotExecutable = 126;
 
-    /// <summary>No Sass executable could be resolved.</summary>
+    /// <summary>No Sass runtime could be resolved.</summary>
     public const int SassNotFound = 127;
 }

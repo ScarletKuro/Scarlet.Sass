@@ -97,24 +97,25 @@
     <SassRuntimeProject Condition="'$(RuntimeIdentifier)' == 'osx-x64'">darwin-x64</SassRuntimeProject>
     <SassRuntimeProject Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">darwin-arm64</SassRuntimeProject>
 
-    <SassExecutableName Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">sass.bat</SassExecutableName>
-    <SassExecutableName Condition="'$(SassRuntimeProject)' != '' and '$(SassExecutableName)' == ''">sass</SassExecutableName>
+    <SassLauncherName Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">sass.bat</SassLauncherName>
+    <SassLauncherName Condition="'$(SassRuntimeProject)' != '' and '$(SassLauncherName)' == ''">sass</SassLauncherName>
 
     <!-- Empty for the pointer build, for the 'any' build, and for a plain RID-less `dotnet build` during
          development. That single condition is all that keeps Sass out of the 'any' package. -->
-    <EmbedSassBinary>false</EmbedSassBinary>
-    <EmbedSassBinary Condition="'$(SassRuntimeProject)' != ''">true</EmbedSassBinary>
+    <EmbedSassRuntime>false</EmbedSassRuntime>
+    <EmbedSassRuntime Condition="'$(SassRuntimeProject)' != ''">true</EmbedSassRuntime>
 
-    <SassRuntimeProjectDir Condition="'$(EmbedSassBinary)' == 'true'">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '..', 'Scarlet.Sass.Runtime.$(SassRuntimeProject)'))</SassRuntimeProjectDir>
-    <SassBinaryPath Condition="'$(EmbedSassBinary)' == 'true'">$(SassRuntimeProjectDir)dart-sass\$(SassExecutableName)</SassBinaryPath>
+    <SassRuntimeProjectDir Condition="'$(EmbedSassRuntime)' == 'true'">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '..', 'Scarlet.Sass.Runtime.$(SassRuntimeProject)'))</SassRuntimeProjectDir>
+    <SassLauncherPath Condition="'$(EmbedSassRuntime)' == 'true'">$(SassRuntimeProjectDir)dart-sass\$(SassLauncherName)</SassLauncherPath>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(EmbedSassBinary)' == 'true'">
+  <ItemGroup Condition="'$(EmbedSassRuntime)' == 'true'">
     <!--
-      The CLI embeds the very same binary the matching runtime package ships, rather than downloading its
-      own copy: identical bytes by construction, and it halves the download volume of a cold build.
+      The CLI embeds the very same Dart Sass runtime folder the matching runtime package ships, rather
+      than downloading its own copy: identical bytes by construction, and it halves the download volume of
+      a cold build.
 
-      ReferenceOutputAssembly=false because only the binary is wanted, not an assembly reference.
+      ReferenceOutputAssembly=false because only the runtime files are wanted, not an assembly reference.
 
       UndefineProperties is required, not cosmetic: this project builds once per RID, and those global
       properties would otherwise flow into a netstandard2.0 project that declares no RIDs and cannot
@@ -127,16 +128,16 @@
   </ItemGroup>
 
   <!--
-    Put the binary next to the app in bin/ and, crucially, in publish/ - the SDK's tool packaging globs the
-    publish directory into tools/<tfm>/<rid>/, which is what puts it beside the executable at runtime.
+    Put the runtime folder next to the app in bin/ and, crucially, in publish/ - the SDK's tool packaging
+    globs the publish directory into tools/<tfm>/<rid>/, which is what puts it beside the app at runtime.
     Injected before AssignTargetPaths because that is when None items get their output paths assigned.
   -->
   <Target Name="AddSassBinaryToOutputs"
-          Condition="'$(EmbedSassBinary)' == 'true'"
+          Condition="'$(EmbedSassRuntime)' == 'true'"
           BeforeTargets="AssignTargetPaths">
 
-    <Error Condition="!Exists('$(SassBinaryPath)')"
-           Text="Scarlet.Sass.Cli: no Sass binary for $(RuntimeIdentifier) at '$(SassBinaryPath)'. It is produced by Scarlet.Sass.Runtime.$(SassRuntimeProject), whose download target tolerates failure - check network access to github.com and that pwsh (Windows) or bash+curl+unzip (Unix) are available, then rebuild. Packing a RID package without its Sass binary would ship a broken tool." />
+    <Error Condition="!Exists('$(SassLauncherPath)')"
+           Text="Scarlet.Sass.Cli: no Sass launcher for $(RuntimeIdentifier) at '$(SassLauncherPath)'. It is produced by Scarlet.Sass.Runtime.$(SassRuntimeProject), whose download target tolerates failure - check network access to github.com and that pwsh (Windows) or bash+curl+unzip (Unix) are available, then rebuild. Packing a RID package without its Sass runtime would ship a broken tool." />
 
     <ItemGroup>
       <_SassRuntimeFile Include="$(SassRuntimeProjectDir)dart-sass\**\*" />

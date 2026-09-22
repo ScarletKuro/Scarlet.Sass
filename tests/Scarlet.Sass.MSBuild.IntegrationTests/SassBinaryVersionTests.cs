@@ -29,7 +29,7 @@ public class SassBinaryVersionTests
         var expectedVersion = ReadPinnedSassVersion();
         var platform = SassRuntimeResolver.GetCurrentPlatform();
         var runtimesDirectory = Path.Combine(Directory.GetCurrentDirectory(), "runtimes");
-        var SassPath = SassRuntimeResolver.GetExecutablePath(runtimesDirectory, platform);
+        var SassPath = SassRuntimeResolver.GetLauncherPath(runtimesDirectory, platform);
 
         Assert.True(
             File.Exists(SassPath),

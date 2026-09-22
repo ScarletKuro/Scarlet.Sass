@@ -239,9 +239,9 @@ public static class SassRuntimeResolver
     public static string GetRuntimeDirectoryName(Platform platform) => GetInfo(platform).DirectoryName;
 
     /// <summary>
-    /// Gets the Sass executable name for the specified platform.
+    /// Gets the public Sass launcher name for the specified platform.
     /// </summary>
-    public static string GetExecutableName(Platform platform) => GetInfo(platform).LauncherName;
+    public static string GetLauncherName(Platform platform) => GetInfo(platform).LauncherName;
 
     /// <summary>
     /// Gets the runtime package name for the specified platform.
@@ -259,12 +259,12 @@ public static class SassRuntimeResolver
     public static string GetArchiveExtension(Platform platform) => GetInfo(platform).ArchiveExtension;
 
     /// <summary>
-    /// Gets the full path the Sass executable is expected at inside a runtimes directory.
+    /// Gets the full path the public Sass launcher is expected at inside a runtimes directory.
     /// </summary>
-    /// <param name="runtimesPath">Directory containing <c>&lt;rid&gt;/native/&lt;executable&gt;</c>.</param>
+    /// <param name="runtimesPath">Directory containing <c>&lt;rid&gt;/native/dart-sass/&lt;launcher&gt;</c>.</param>
     /// <param name="platform">The platform to build the path for.</param>
-    /// <returns>The full path to the Sass executable. The file is not required to exist.</returns>
-    public static string GetExecutablePath(string runtimesPath, Platform platform)
+    /// <returns>The full path to the public Sass launcher. The file is not required to exist.</returns>
+    public static string GetLauncherPath(string runtimesPath, Platform platform)
     {
         var info = GetInfo(platform);
 
@@ -276,13 +276,13 @@ public static class SassRuntimeResolver
     /// </summary>
     public static SassLaunchCommand CreateLaunchCommand(
         IFileSystem fileSystem,
-        string sassExecutablePath,
+        string sassLauncherPath,
         Platform platform)
     {
-        var bundleDirectory = Path.GetDirectoryName(sassExecutablePath);
+        var bundleDirectory = Path.GetDirectoryName(sassLauncherPath);
         if (string.IsNullOrEmpty(bundleDirectory))
         {
-            return SassLaunchCommand.FromExecutablePath(sassExecutablePath);
+            return SassLaunchCommand.FromLauncherPath(sassLauncherPath);
         }
 
         var dartPath = Path.Combine(bundleDirectory, "src", GetInfo(platform).DartExecutableName);
@@ -294,29 +294,29 @@ public static class SassRuntimeResolver
         // Windows, where `sass.bat` starts `dart.exe`, while still keeping the launcher path for
         // diagnostics and for custom fallback layouts.
         return fileSystem.File.Exists(dartPath) && fileSystem.File.Exists(snapshotPath)
-            ? new SassLaunchCommand(dartPath, new[] { snapshotPath }, sassExecutablePath)
-            : SassLaunchCommand.FromExecutablePath(sassExecutablePath);
+            ? new SassLaunchCommand(dartPath, new[] { snapshotPath }, sassLauncherPath)
+            : SassLaunchCommand.FromLauncherPath(sassLauncherPath);
     }
 
     /// <summary>
     /// Gets the files in a Dart Sass bundle that must be executable on Unix-like hosts.
     /// </summary>
-    /// <param name="sassExecutablePath">Path to the public Sass launcher.</param>
+    /// <param name="sassLauncherPath">Path to the public Sass launcher.</param>
     /// <param name="platform">The platform the bundle targets.</param>
     /// <returns>The launcher, plus the internal Dart VM on Linux and macOS.</returns>
-    public static IReadOnlyList<string> GetExecutablePermissionPaths(string sassExecutablePath, Platform platform)
+    public static IReadOnlyList<string> GetExecutablePermissionPaths(string sassLauncherPath, Platform platform)
     {
-        var directory = Path.GetDirectoryName(sassExecutablePath);
+        var directory = Path.GetDirectoryName(sassLauncherPath);
         if (string.IsNullOrEmpty(directory))
         {
-            return new[] { sassExecutablePath };
+            return new[] { sassLauncherPath };
         }
 
         var dartPath = Path.Combine(directory, "src", GetInfo(platform).DartExecutableName);
 
         return new[]
         {
-            sassExecutablePath,
+            sassLauncherPath,
             dartPath
         };
     }
@@ -327,10 +327,10 @@ public static class SassRuntimeResolver
     public static void EnsureExecutablePermissions(
         IFileSystem fileSystem,
         IChmodProvider chmodProvider,
-        string sassExecutablePath,
+        string sassLauncherPath,
         Platform platform)
     {
-        foreach (var path in GetExecutablePermissionPaths(sassExecutablePath, platform))
+        foreach (var path in GetExecutablePermissionPaths(sassLauncherPath, platform))
         {
             if (fileSystem.File.Exists(path))
             {
@@ -383,7 +383,7 @@ public static class SassRuntimeResolver
     }
 
     /// <summary>
-    /// Resolves the full path to the Sass executable.
+    /// Resolves the full path to the public Sass launcher.
     /// </summary>
     /// <param name="fileSystem">File system abstraction.</param>
     /// <param name="chmodProvider">Provider for setting executable permissions.</param>
@@ -391,9 +391,9 @@ public static class SassRuntimeResolver
     /// <param name="runtimeDirectory">Optional explicit runtime directory. When set, it wins over <paramref name="runtimePacks"/>.</param>
     /// <param name="runtimePacks">Runtime packs contributed by the referenced runtime packages.</param>
     /// <param name="log">Optional sink for diagnostic messages about the selection.</param>
-    /// <returns>Full path to the Sass executable.</returns>
-    /// <exception cref="FileNotFoundException">No usable Sass executable could be found.</exception>
-    public static string ResolveSassExecutable(
+    /// <returns>Full path to the public Sass launcher.</returns>
+    /// <exception cref="FileNotFoundException">No usable Sass launcher could be found.</exception>
+    public static string ResolveSassLauncher(
         IFileSystem fileSystem,
         IChmodProvider chmodProvider,
         Platform platform,
@@ -412,7 +412,7 @@ public static class SassRuntimeResolver
     /// <param name="runtimePacks">Runtime packs contributed by the referenced runtime packages.</param>
     /// <param name="log">Optional sink for diagnostic messages about the selection.</param>
     /// <returns>The command to launch Sass.</returns>
-    /// <exception cref="FileNotFoundException">No usable Sass executable could be found.</exception>
+    /// <exception cref="FileNotFoundException">No usable Sass launcher could be found.</exception>
     public static SassLaunchCommand ResolveSassLaunchCommand(
         IFileSystem fileSystem,
         IChmodProvider chmodProvider,
@@ -432,7 +432,7 @@ public static class SassRuntimeResolver
 
         foreach (var candidate in candidates)
         {
-            var candidatePath = GetExecutablePath(candidate.RuntimesPath, platform);
+            var candidatePath = GetLauncherPath(candidate.RuntimesPath, platform);
 
             if (fileSystem.File.Exists(candidatePath))
             {
@@ -459,7 +459,7 @@ public static class SassRuntimeResolver
     }
 
     /// <summary>
-    /// Resolves the Sass executable inside an explicitly configured runtimes directory.
+    /// Resolves the Sass launcher inside an explicitly configured runtimes directory.
     /// </summary>
     private static SassLaunchCommand ResolveFromDirectory(
         IFileSystem fileSystem,
@@ -467,17 +467,17 @@ public static class SassRuntimeResolver
         Platform platform,
         string runtimeDirectory)
     {
-        var sassPath = GetExecutablePath(runtimeDirectory, platform);
+        var sassPath = GetLauncherPath(runtimeDirectory, platform);
 
         if (!fileSystem.File.Exists(sassPath))
         {
             var runtimePackageName = GetRuntimePackageName(platform);
 
             throw new FileNotFoundException(
-                $"Sass executable not found at: {sassPath}\n\n" +
+                $"Sass launcher not found at: {sassPath}\n\n" +
                 $"SassRuntimeDirectory points at '{runtimeDirectory}', which does not contain a Sass build for {GetRuntimeIdentifier(platform)}.\n" +
                 $"Either clear that property and reference the {runtimePackageName} package, or make sure the directory " +
-                $"contains '{GetRuntimeIdentifier(platform)}/native/{GetInfo(platform).DirectoryName}/{GetExecutableName(platform)}'.");
+                $"contains '{GetRuntimeIdentifier(platform)}/native/{GetInfo(platform).DirectoryName}/{GetLauncherName(platform)}'.");
         }
 
         EnsureExecutablePermissions(fileSystem, chmodProvider, sassPath, platform);
@@ -509,7 +509,7 @@ public static class SassRuntimeResolver
     }
 
     /// <summary>
-    /// Builds the error shown when a matching runtime pack is referenced but its binary is missing.
+    /// Builds the error shown when a matching runtime pack is referenced but its launcher is missing.
     /// </summary>
     private static string BuildIncompletePackMessage(
         Platform platform,
@@ -517,10 +517,10 @@ public static class SassRuntimeResolver
         IReadOnlyList<string> searched)
     {
         var message = new StringBuilder();
-        message.Append($"Sass executable not found at: {searched[0]}\n\n");
+        message.Append($"Sass launcher not found at: {searched[0]}\n\n");
         message.Append(candidates.Count == 1
-            ? $"The runtime pack {candidates[0]} is referenced but its Sass executable is missing.\n"
-            : $"{candidates.Count} runtime packs target {GetRuntimeIdentifier(platform)} but none of them contains a Sass executable.\n");
+            ? $"The runtime pack {candidates[0]} is referenced but its Sass launcher is missing.\n"
+            : $"{candidates.Count} runtime packs target {GetRuntimeIdentifier(platform)} but none of them contains a Sass launcher.\n");
         message.Append("Try clearing the NuGet cache for the runtime package and rebuilding.\n\n");
         message.Append("Locations searched:\n");
 

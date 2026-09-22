@@ -4,9 +4,9 @@ using Scarlet.Sass.Core;
 namespace Scarlet.Sass.Cli;
 
 /// <summary>
-/// The outcome of resolving a Sass executable, including the context needed to explain it.
+/// The outcome of resolving a Sass launcher, including the context needed to explain it.
 /// </summary>
-/// <param name="ExecutablePath">The resolved executable, or <see langword="null"/> when none was found.</param>
+/// <param name="LaunchCommand">The command to start, or <see langword="null"/> when no Sass runtime was resolved.</param>
 /// <param name="Source">Where it came from.</param>
 /// <param name="Platform">The detected host platform.</param>
 /// <param name="RuntimeIdentifier">The runtime identifier for <paramref name="Platform"/>.</param>
@@ -15,9 +15,8 @@ namespace Scarlet.Sass.Cli;
 /// <param name="RuntimeDirectory">The version-scoped directory downloads go to.</param>
 /// <param name="EmbeddedProbePath">Where an embedded binary would have been, for diagnostics.</param>
 /// <param name="FailureReason">Why resolution failed, when it did.</param>
-/// <param name="LaunchCommand">The command to start when resolution succeeds.</param>
 internal sealed record SassResolution(
-    string? ExecutablePath,
+    SassLaunchCommand? LaunchCommand,
     SassSource Source,
     Platform Platform,
     string RuntimeIdentifier,
@@ -25,13 +24,12 @@ internal sealed record SassResolution(
     string CacheRoot,
     string RuntimeDirectory,
     string EmbeddedProbePath,
-    string? FailureReason,
-    SassLaunchCommand? LaunchCommand = null)
+    string? FailureReason)
 {
-    /// <summary>Whether a usable Sass executable was resolved.</summary>
-    [MemberNotNullWhen(true, nameof(ExecutablePath))]
-    public bool IsResolved => ExecutablePath is not null;
+    /// <summary>The resolved public Sass launcher, or <see langword="null"/> when no Sass runtime was found.</summary>
+    public string? LauncherPath => LaunchCommand?.DisplayPath;
 
-    public SassLaunchCommand GetLaunchCommand() =>
-        LaunchCommand ?? SassLaunchCommand.FromExecutablePath(ExecutablePath!);
+    /// <summary>Whether a usable Sass launch command was resolved.</summary>
+    [MemberNotNullWhen(true, nameof(LaunchCommand))]
+    public bool IsResolved => LaunchCommand is not null;
 }

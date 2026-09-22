@@ -26,7 +26,9 @@ internal static class DiagnosticsReport
         Append(report, "Tool directory", AppContext.BaseDirectory);
         report.AppendLine();
 
-        Append(report, "Sass executable", resolution.ExecutablePath ?? "(not present)");
+        Append(report, "Sass launcher", resolution.LauncherPath ?? "(not present)");
+        Append(report, "Process file", resolution.LaunchCommand?.FileName ?? "(not present)");
+        Append(report, "Process arguments", DescribeProcessArguments(resolution));
         Append(report, "Source", DescribeSource(resolution));
         Append(report, "Requested version", resolution.RequestedVersion);
         Append(report, "Embedded probe path", resolution.EmbeddedProbePath);
@@ -59,7 +61,9 @@ internal static class DiagnosticsReport
             ["platform"] = resolution.Platform.ToString(),
             ["runtimeIdentifier"] = resolution.RuntimeIdentifier,
             ["toolDirectory"] = AppContext.BaseDirectory,
-            ["SassExecutable"] = resolution.ExecutablePath,
+            ["sassLauncher"] = resolution.LauncherPath,
+            ["processFile"] = resolution.LaunchCommand?.FileName,
+            ["processArguments"] = resolution.LaunchCommand?.Arguments,
             ["source"] = resolution.Source.ToString().ToLowerInvariant(),
             ["requestedVersion"] = resolution.RequestedVersion,
             ["embeddedProbePath"] = resolution.EmbeddedProbePath,
@@ -110,6 +114,18 @@ internal static class DiagnosticsReport
             SassSource.Explicit => $"explicit - {SassCliOptions.PathVariable}",
             _ => "not found - would download on the next run"
         };
+    }
+
+    private static string DescribeProcessArguments(SassResolution resolution)
+    {
+        if (resolution.LaunchCommand is null)
+        {
+            return "(not present)";
+        }
+
+        return resolution.LaunchCommand.Arguments.Count == 0
+            ? "(none)"
+            : string.Join(" ", resolution.LaunchCommand.Arguments);
     }
 
     private static string DescribeDownloadUrl(SassResolution resolution)

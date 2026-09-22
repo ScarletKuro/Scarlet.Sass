@@ -6,7 +6,7 @@ namespace Scarlet.Sass.MSBuild.Tests;
 /// Keeps the CLI's RID table in step with <see cref="SassRuntimeResolver"/>.
 /// </summary>
 /// <remarks>
-/// <c>Scarlet.Sass.Cli.csproj</c> has to map each runtime identifier to a runtime project and an executable
+/// <c>Scarlet.Sass.Cli.csproj</c> has to map each runtime identifier to a runtime project and a launcher
 /// name in MSBuild, where it cannot call into the resolver. That duplication is deliberate but silent: get
 /// an entry wrong and the RID package embeds the wrong platform's Sass, which only surfaces for whoever
 /// installs on that platform. This asserts the two agree.
@@ -54,7 +54,7 @@ public class SassRidMapTests
     public void CliProject_ShouldCoverEveryPlatformTheResolverKnows()
     {
         // Arrange - a new platform added to the resolver must also be added to the CLI's table, or its RID
-        // package would silently ship without a Sass binary
+        // package would silently ship without a Sass runtime
         var project = LoadCliProject();
 
         var mappedRids = project.Descendants("SassRuntimeProject")

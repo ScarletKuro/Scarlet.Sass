@@ -115,10 +115,10 @@ public class PlatformTests
     [InlineData(Platform.LinuxMuslArm64, "sass")]
     [InlineData(Platform.MacOsX64, "sass")]
     [InlineData(Platform.MacOsArm64, "sass")]
-    public void GetExecutableName_ShouldReturnCorrectName(Platform platform, string expected)
+    public void GetLauncherName_ShouldReturnCorrectName(Platform platform, string expected)
     {
         // Act
-        var result = SassRuntimeResolver.GetExecutableName(platform);
+        var result = SassRuntimeResolver.GetLauncherName(platform);
 
         // Assert
         Assert.Equal(expected, result);

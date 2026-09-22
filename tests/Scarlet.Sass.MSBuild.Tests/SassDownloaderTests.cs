@@ -46,7 +46,7 @@ public class SassDownloaderTests
         // Arrange - Windows uses the .zip path through IZipArchiveProvider.
         var platform = Platform.WindowsX64;
         var tempDir = "/test-runtime";
-        var expectedPath = ExpectedExecutablePath(tempDir, platform);
+        var expectedPath = ExpectedLauncherPath(tempDir, platform);
 
         var mockFileSystem = new MockFileSystem();
         var mockHttp = new MockHttpMessageHandler();
@@ -74,7 +74,7 @@ public class SassDownloaderTests
         // reader, so this exercises that path with a genuinely gzipped tar stream rather than a zip.
         var platform = Platform.LinuxX64;
         var tempDir = "/test-runtime";
-        var expectedPath = ExpectedExecutablePath(tempDir, platform);
+        var expectedPath = ExpectedLauncherPath(tempDir, platform);
 
         var mockFileSystem = new MockFileSystem();
         var mockHttp = new MockHttpMessageHandler();
@@ -269,7 +269,7 @@ public class SassDownloaderTests
     {
         var platform = Platform.WindowsX64;
         var tempDir = "/test-runtime";
-        var expectedPath = ExpectedExecutablePath(tempDir, platform);
+        var expectedPath = ExpectedLauncherPath(tempDir, platform);
         var markerPath = expectedPath + ".version";
 
         var mockFileSystem = new MockFileSystem();
@@ -303,7 +303,7 @@ public class SassDownloaderTests
         // Simulate a runtime cached by a pre-marker version of SassDownloader (executable present, no marker).
         var platform = Platform.WindowsX64;
         var tempDir = "/test-runtime";
-        var expectedPath = ExpectedExecutablePath(tempDir, platform);
+        var expectedPath = ExpectedLauncherPath(tempDir, platform);
 
         var mockFileSystem = new MockFileSystem();
         mockFileSystem.AddFile(expectedPath, new MockFileData("stale executable"));
@@ -332,7 +332,7 @@ public class SassDownloaderTests
     {
         var platform = Platform.WindowsX64;
         var tempDir = "/test-runtime";
-        var expectedPath = ExpectedExecutablePath(tempDir, platform);
+        var expectedPath = ExpectedLauncherPath(tempDir, platform);
 
         var mockFileSystem = new MockFileSystem();
         mockFileSystem.AddFile(expectedPath, new MockFileData("already-cached executable"));
@@ -357,7 +357,7 @@ public class SassDownloaderTests
     {
         var platform = Platform.WindowsX64;
         var tempDir = "/test-runtime";
-        var expectedPath = ExpectedExecutablePath(tempDir, platform);
+        var expectedPath = ExpectedLauncherPath(tempDir, platform);
 
         var mockFileSystem = new MockFileSystem();
         mockFileSystem.AddFile(expectedPath, new MockFileData("stale executable"));
@@ -455,7 +455,7 @@ public class SassDownloaderTests
     [InlineData(Platform.LinuxMuslX64, "linux-x64-musl", "tar.gz", "sass")]
     [InlineData(Platform.LinuxMuslArm64, "linux-arm64-musl", "tar.gz", "sass")]
     public void DownloadRuntime_ForEveryPlatform_ShouldRequestTheCorrectArchiveNameAndExtension(
-        Platform platform, string downloadName, string extension, string executableName)
+        Platform platform, string downloadName, string extension, string launcherName)
     {
         // Arrange
         var tempDir = "/test-runtime";
@@ -465,11 +465,11 @@ public class SassDownloaderTests
 
         if (extension == "zip")
         {
-            mockHttp.When(url).Respond("application/zip", CreateMockZip(executableName));
+            mockHttp.When(url).Respond("application/zip", CreateMockZip(launcherName));
         }
         else
         {
-            mockHttp.When(url).Respond("application/gzip", CreateMockTarGz(($"dart-sass/{executableName}", "fake Sass executable")));
+            mockHttp.When(url).Respond("application/gzip", CreateMockTarGz(($"dart-sass/{launcherName}", "fake Sass executable")));
         }
 
         var downloader = CreateDownloader(mockFileSystem, mockHttp, platform);
@@ -531,14 +531,14 @@ public class SassDownloaderTests
         // thread - on the owning thread, WaitOne would succeed immediately instead of blocking.
         var platform = Platform.WindowsX64;
         var tempDir = "/test-runtime";
-        var executablePath = ExpectedExecutablePath(tempDir, platform);
+        var launcherPath = ExpectedLauncherPath(tempDir, platform);
 
         using var mutexHeldSignal = new ManualResetEventSlim(false);
         using var releaseMutexSignal = new ManualResetEventSlim(false);
 
         var holderThread = new Thread(() =>
         {
-            using var mutex = new Mutex(false, SassDownloader.CreateMutexName(executablePath), out _);
+            using var mutex = new Mutex(false, SassDownloader.CreateMutexName(launcherPath), out _);
             mutex.WaitOne();
             mutexHeldSignal.Set();
             releaseMutexSignal.Wait();
@@ -595,8 +595,8 @@ public class SassDownloaderTests
             NoOpSassLogger.Instance);
     }
 
-    private static string ExpectedExecutablePath(string runtimeDirectory, Platform platform) =>
-        SassRuntimeResolver.GetExecutablePath(runtimeDirectory, platform);
+    private static string ExpectedLauncherPath(string runtimeDirectory, Platform platform) =>
+        SassRuntimeResolver.GetLauncherPath(runtimeDirectory, platform);
 
     private static Task<HttpResponseMessage> RespondWithZip(MemoryStream zipContent)
     {
@@ -608,8 +608,8 @@ public class SassDownloaderTests
         return Task.FromResult(response);
     }
 
-    private static MemoryStream CreateMockZip(string executableName) =>
-        CreateMockZipWithEntry($"dart-sass/{executableName}", "fake Sass executable");
+    private static MemoryStream CreateMockZip(string launcherName) =>
+        CreateMockZipWithEntry($"dart-sass/{launcherName}", "fake Sass executable");
 
     private static MemoryStream CreateMockZipWithEntry(string entryName, string content)
     {

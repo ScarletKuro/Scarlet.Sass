@@ -55,21 +55,21 @@ public sealed class SassDownloader
         }
 
         var runtimeId = SassRuntimeResolver.GetRuntimeIdentifier(_platform);
-        var executablePath = SassRuntimeResolver.GetExecutablePath(runtimeDirectory, _platform);
-        var versionMarkerPath = GetVersionMarkerPath(executablePath);
+        var launcherPath = SassRuntimeResolver.GetLauncherPath(runtimeDirectory, _platform);
+        var versionMarkerPath = GetVersionMarkerPath(launcherPath);
         var hasExplicitVersion = !string.IsNullOrWhiteSpace(version);
 
-        if (hasExplicitVersion && IsCacheValidForVersion(executablePath, versionMarkerPath, version!))
+        if (hasExplicitVersion && IsCacheValidForVersion(launcherPath, versionMarkerPath, version!))
         {
-            _log.LogMessage($"Dart Sass {version} is already cached at {executablePath}. Skipping download.");
-            EnsureExecutablePermissions(executablePath);
-            return executablePath;
+            _log.LogMessage($"Dart Sass {version} is already cached at {launcherPath}. Skipping download.");
+            EnsureExecutablePermissions(launcherPath);
+            return launcherPath;
         }
 
         var fullRuntimePath = Path.Combine(runtimeDirectory, runtimeId, "native");
         _fileSystem.Directory.CreateDirectory(fullRuntimePath);
 
-        using var mutex = new Mutex(false, CreateMutexName(executablePath), out var createdNew);
+        using var mutex = new Mutex(false, CreateMutexName(launcherPath), out var createdNew);
 
         if (!createdNew)
         {
@@ -93,16 +93,16 @@ public sealed class SassDownloader
 
         try
         {
-            if (hasExplicitVersion && IsCacheValidForVersion(executablePath, versionMarkerPath, version!))
+            if (hasExplicitVersion && IsCacheValidForVersion(launcherPath, versionMarkerPath, version!))
             {
                 _log.LogMessage($"Dart Sass {version} was downloaded by another process while waiting. Skipping download.");
-                EnsureExecutablePermissions(executablePath);
-                return executablePath;
+                EnsureExecutablePermissions(launcherPath);
+                return launcherPath;
             }
 
             return hasExplicitVersion
-                ? DownloadVersion(fullRuntimePath, executablePath, versionMarkerPath, version!)
-                : ResolveAndDownloadLatest(fullRuntimePath, executablePath, versionMarkerPath);
+                ? DownloadVersion(fullRuntimePath, launcherPath, versionMarkerPath, version!)
+                : ResolveAndDownloadLatest(fullRuntimePath, launcherPath, versionMarkerPath);
         }
         finally
         {
@@ -128,41 +128,41 @@ public sealed class SassDownloader
         return client;
     }
 
-    internal static string CreateMutexName(string executablePath)
+    internal static string CreateMutexName(string launcherPath)
     {
-        var normalizedPath = Path.GetFullPath(executablePath).ToUpperInvariant();
+        var normalizedPath = Path.GetFullPath(launcherPath).ToUpperInvariant();
         var hashString = HashUtilities.ComputeSha256Hex(normalizedPath).ToUpperInvariant();
         return $"Global\\ScarletSass_{hashString}";
     }
 
-    private string DownloadVersion(string fullRuntimePath, string executablePath, string versionMarkerPath, string version)
+    private string DownloadVersion(string fullRuntimePath, string launcherPath, string versionMarkerPath, string version)
     {
         var archiveName = GetArchiveName(version);
         var downloadUrl = $"{GithubReleasesUrl}/download/{version}/{archiveName}";
         DownloadAndExtractAsync(downloadUrl, fullRuntimePath, archiveName).GetAwaiter().GetResult();
 
-        if (!_fileSystem.File.Exists(executablePath))
+        if (!_fileSystem.File.Exists(launcherPath))
         {
-            throw new FileNotFoundException($"Dart Sass executable was not found after extraction at expected path: {executablePath}");
+            throw new FileNotFoundException($"Dart Sass launcher was not found after extraction at expected path: {launcherPath}");
         }
 
-        EnsureExecutablePermissions(executablePath);
+        EnsureExecutablePermissions(launcherPath);
         WriteVersionMarker(versionMarkerPath, version);
-        return executablePath;
+        return launcherPath;
     }
 
-    private string ResolveAndDownloadLatest(string fullRuntimePath, string executablePath, string versionMarkerPath)
+    private string ResolveAndDownloadLatest(string fullRuntimePath, string launcherPath, string versionMarkerPath)
     {
         var resolvedVersion = _latestVersionResolver
             .TryResolveVersionAsync($"{GithubReleasesUrl}/latest")
             .GetAwaiter()
             .GetResult();
 
-        if (resolvedVersion is not null && IsCacheValidForVersion(executablePath, versionMarkerPath, resolvedVersion))
+        if (resolvedVersion is not null && IsCacheValidForVersion(launcherPath, versionMarkerPath, resolvedVersion))
         {
-            _log.LogMessage($"Dart Sass 'latest' still resolves to {resolvedVersion}, which is already cached at {executablePath}. Skipping download.");
-            EnsureExecutablePermissions(executablePath);
-            return executablePath;
+            _log.LogMessage($"Dart Sass 'latest' still resolves to {resolvedVersion}, which is already cached at {launcherPath}. Skipping download.");
+            EnsureExecutablePermissions(launcherPath);
+            return launcherPath;
         }
 
         if (resolvedVersion is null)
@@ -171,7 +171,7 @@ public sealed class SassDownloader
         }
 
         _log.LogMessage($"Dart Sass 'latest' resolved to {resolvedVersion}.");
-        return DownloadVersion(fullRuntimePath, executablePath, versionMarkerPath, resolvedVersion);
+        return DownloadVersion(fullRuntimePath, launcherPath, versionMarkerPath, resolvedVersion);
     }
 
     private string GetArchiveName(string version)
@@ -181,9 +181,9 @@ public sealed class SassDownloader
         return $"dart-sass-{version}-{platformName}.{extension}";
     }
 
-    private void EnsureExecutablePermissions(string executablePath)
+    private void EnsureExecutablePermissions(string launcherPath)
     {
-        SassRuntimeResolver.EnsureExecutablePermissions(_fileSystem, _chmodProvider, executablePath, _platform);
+        SassRuntimeResolver.EnsureExecutablePermissions(_fileSystem, _chmodProvider, launcherPath, _platform);
     }
 
     private async Task DownloadAndExtractAsync(string downloadUrl, string fullRuntimePath, string archiveName)
@@ -287,11 +287,11 @@ public sealed class SassDownloader
         return destinationPath;
     }
 
-    private static string GetVersionMarkerPath(string executablePath) => executablePath + ".version";
+    private static string GetVersionMarkerPath(string launcherPath) => launcherPath + ".version";
 
-    private bool IsCacheValidForVersion(string executablePath, string versionMarkerPath, string expectedVersion)
+    private bool IsCacheValidForVersion(string launcherPath, string versionMarkerPath, string expectedVersion)
     {
-        if (!_fileSystem.File.Exists(executablePath) || !_fileSystem.File.Exists(versionMarkerPath))
+        if (!_fileSystem.File.Exists(launcherPath) || !_fileSystem.File.Exists(versionMarkerPath))
         {
             return false;
         }

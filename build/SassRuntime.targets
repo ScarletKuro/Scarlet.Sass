@@ -5,8 +5,16 @@
       <SassSourceDir>$(MSBuildProjectDirectory)/dart-sass</SassSourceDir>
     </PropertyGroup>
 
-    <Error Condition="!Exists('$(SassSourceDir)/$(SassExecutableName)')"
-           Text="Dart Sass was not found at '$(SassSourceDir)/$(SassExecutableName)'. Check network access to github.com and the runtime download target output." />
+    <Error Condition="'$(SassLauncherName)' == ''"
+           Text="SassLauncherName must be set by the runtime package project." />
+    <Error Condition="'$(SassDartExecutableName)' == ''"
+           Text="SassDartExecutableName must be set by the runtime package project." />
+    <Error Condition="!Exists('$(SassSourceDir)/$(SassLauncherName)')"
+           Text="Dart Sass launcher was not found at '$(SassSourceDir)/$(SassLauncherName)'. Check network access to github.com and the runtime download target output." />
+    <Error Condition="!Exists('$(SassSourceDir)/src/$(SassDartExecutableName)')"
+           Text="Dart Sass executable was not found at '$(SassSourceDir)/src/$(SassDartExecutableName)'. The runtime package must contain the full official dart-sass folder." />
+    <Error Condition="!Exists('$(SassSourceDir)/src/sass.snapshot')"
+           Text="Dart Sass snapshot was not found at '$(SassSourceDir)/src/sass.snapshot'. The runtime package must contain the full official dart-sass folder." />
 
     <ItemGroup>
       <SassRuntimeFiles Include="$(SassSourceDir)/**/*" />
@@ -17,8 +25,8 @@
           DestinationFiles="@(SassRuntimeFiles->'$(RidOutputDir)/%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
 
-    <Exec Condition="$([MSBuild]::IsOsUnixLike()) and Exists('$(RidOutputDir)/sass')" Command="chmod +x '$(RidOutputDir)/sass'" />
-    <Exec Condition="$([MSBuild]::IsOsUnixLike()) and Exists('$(RidOutputDir)/src/dart')" Command="chmod +x '$(RidOutputDir)/src/dart'" />
+    <Exec Condition="$([MSBuild]::IsOsUnixLike()) and Exists('$(RidOutputDir)/$(SassLauncherName)')" Command="chmod +x '$(RidOutputDir)/$(SassLauncherName)'" />
+    <Exec Condition="$([MSBuild]::IsOsUnixLike()) and Exists('$(RidOutputDir)/src/$(SassDartExecutableName)')" Command="chmod +x '$(RidOutputDir)/src/$(SassDartExecutableName)'" />
   </Target>
 
   <ItemGroup>
