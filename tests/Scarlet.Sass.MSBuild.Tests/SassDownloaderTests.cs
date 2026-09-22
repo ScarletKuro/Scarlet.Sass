@@ -141,14 +141,14 @@ public class SassDownloaderTests
         var mockFileSystem = new MockFileSystem();
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz")
-                .Respond("application/gzip", new MemoryStream(new byte[] { 1, 2, 3 }));
+                .Respond("application/gzip", new MemoryStream([1, 2, 3]));
 
         var downloader = new SassDownloader(
             mockHttp.ToHttpClient(),
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem),
-            new FakeTarArchiveProvider(new[] { "../../evil.txt" }),
+            new FakeTarArchiveProvider(["../../evil.txt"]),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -168,14 +168,14 @@ public class SassDownloaderTests
         var mockFileSystem = new MockFileSystem();
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz")
-                .Respond("application/gzip", new MemoryStream(new byte[] { 1, 2, 3 }));
+                .Respond("application/gzip", new MemoryStream([1, 2, 3]));
 
         var downloader = new SassDownloader(
             mockHttp.ToHttpClient(),
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem),
-            new FakeTarArchiveProvider(new[] { "dart-sass/README.md" }),
+            new FakeTarArchiveProvider(["dart-sass/README.md"]),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -220,13 +220,13 @@ public class SassDownloaderTests
         var mockFileSystem = new MockFileSystem();
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-windows-x64.zip")
-                .Respond("application/zip", new MemoryStream(new byte[] { 1, 2, 3 }));
+                .Respond("application/zip", new MemoryStream([1, 2, 3]));
 
         var downloader = new SassDownloader(
             mockHttp.ToHttpClient(),
             new FakeLatestVersionResolver(null),
             mockFileSystem,
-            new FakeZipArchiveProvider(mockFileSystem, new[] { "../../evil.txt" }),
+            new FakeZipArchiveProvider(mockFileSystem, ["../../evil.txt"]),
             new FakeTarArchiveProvider(),
             NoOpChmodProvider.Instance,
             platform,
@@ -428,13 +428,13 @@ public class SassDownloaderTests
         var mockFileSystem = new MockFileSystem();
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-windows-x64.zip")
-                .Respond("application/zip", new MemoryStream(new byte[] { 1, 2, 3 }));
+                .Respond("application/zip", new MemoryStream([1, 2, 3]));
 
         var downloader = new SassDownloader(
             mockHttp.ToHttpClient(),
             new FakeLatestVersionResolver(null),
             mockFileSystem,
-            new FakeZipArchiveProvider(mockFileSystem, new[] { "dart-sass/not-sass.bat" }),
+            new FakeZipArchiveProvider(mockFileSystem, ["dart-sass/not-sass.bat"]),
             new FakeTarArchiveProvider(),
             NoOpChmodProvider.Instance,
             platform,
