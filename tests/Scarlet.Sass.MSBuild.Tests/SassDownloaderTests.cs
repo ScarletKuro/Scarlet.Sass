@@ -128,6 +128,41 @@ public class SassDownloaderTests
     }
 
     [Fact]
+    public void DownloadRuntime_WithExplicitTarDirectoryEntry_ShouldCreateDirectory()
+    {
+        // Arrange - Dart Sass currently relies on nested file paths rather than explicit directory entries,
+        // but directory headers are valid tar entries and SassDownloader owns the extraction behavior.
+        var platform = Platform.LinuxX64;
+        var tempDir = "/test-runtime";
+        var srcDirectory = Path.GetFullPath(Path.Combine(tempDir, "linux-x64", "native", "dart-sass", "src"));
+
+        var mockFileSystem = new MockFileSystem();
+        var mockHttp = new MockHttpMessageHandler();
+        mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-linux-x64.tar.gz")
+                .Respond("application/gzip", new MemoryStream([1, 2, 3]));
+
+        var downloader = new SassDownloader(
+            mockHttp.ToHttpClient(),
+            new FakeLatestVersionResolver(null),
+            mockFileSystem,
+            new FakeZipArchiveProvider(mockFileSystem),
+            new FakeTarArchiveProvider(new[]
+            {
+                FakeTarEntry.Directory("dart-sass/src/"),
+                FakeTarEntry.File("dart-sass/sass", "fake Sass launcher")
+            }),
+            NoOpChmodProvider.Instance,
+            platform,
+            NoOpSassLogger.Instance);
+
+        // Act
+        downloader.DownloadRuntime(tempDir, "1.4.2");
+
+        // Assert
+        Assert.True(mockFileSystem.Directory.Exists(srcDirectory));
+    }
+
+    [Fact]
     public void DownloadRuntime_WithTarEntryEscapingTheDestination_ShouldThrowInvalidDataException()
     {
         // Arrange - ResolveArchiveDestination's zip-slip guard is shared between the zip and tar extraction
@@ -148,7 +183,7 @@ public class SassDownloaderTests
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem),
-            new FakeTarArchiveProvider(["../../evil.txt"]),
+            new FakeTarArchiveProvider([FakeTarEntry.File("../../evil.txt", "fake Sass launcher")]),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -175,7 +210,7 @@ public class SassDownloaderTests
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem),
-            new FakeTarArchiveProvider(["dart-sass/README.md"]),
+            new FakeTarArchiveProvider([FakeTarEntry.File("dart-sass/README.md", "fake Sass launcher")]),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -227,7 +262,7 @@ public class SassDownloaderTests
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem, ["../../evil.txt"]),
-            new FakeTarArchiveProvider(),
+            DefaultTarArchiveProvider(),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -435,7 +470,7 @@ public class SassDownloaderTests
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem, ["dart-sass/not-sass.bat"]),
-            new FakeTarArchiveProvider(),
+            DefaultTarArchiveProvider(),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -504,7 +539,7 @@ public class SassDownloaderTests
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem),
-            new FakeTarArchiveProvider(),
+            DefaultTarArchiveProvider(),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -561,7 +596,7 @@ public class SassDownloaderTests
                 new FakeLatestVersionResolver(null),
                 mockFileSystem,
                 new FakeZipArchiveProvider(mockFileSystem),
-                new FakeTarArchiveProvider(),
+                DefaultTarArchiveProvider(),
                 NoOpChmodProvider.Instance,
                 platform,
                 logger);
@@ -589,7 +624,7 @@ public class SassDownloaderTests
             resolver ?? new FakeLatestVersionResolver(null),
             fileSystem,
             new FakeZipArchiveProvider(fileSystem),
-            new FakeTarArchiveProvider(),
+            DefaultTarArchiveProvider(),
             chmodProvider ?? (IChmodProvider)NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);
@@ -597,6 +632,9 @@ public class SassDownloaderTests
 
     private static string ExpectedLauncherPath(string runtimeDirectory, Platform platform) =>
         SassRuntimeResolver.GetLauncherPath(runtimeDirectory, platform);
+
+    private static FakeTarArchiveProvider DefaultTarArchiveProvider() =>
+        new([FakeTarEntry.File("dart-sass/sass", "fake Sass launcher")]);
 
     private static Task<HttpResponseMessage> RespondWithZip(MemoryStream zipContent)
     {

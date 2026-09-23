@@ -1,6 +1,3 @@
-using System.Text;
-using Scarlet.Sass.Core.Providers;
-
 namespace Scarlet.Sass.MSBuild.Tests.Mock;
 
 /// <summary>
@@ -11,31 +8,19 @@ namespace Scarlet.Sass.MSBuild.Tests.Mock;
 /// </summary>
 public sealed class FakeTarArchiveProvider : ITarArchiveProvider
 {
-    private readonly IReadOnlyList<(string Name, byte[] Content)> _entries;
+    private readonly IReadOnlyList<FakeTarEntry> _entries;
 
-    public FakeTarArchiveProvider()
-        : this(new[] { ("dart-sass/sass", "fake Sass launcher") })
+    public FakeTarArchiveProvider(IReadOnlyList<FakeTarEntry> entries)
     {
-    }
-
-    public FakeTarArchiveProvider(IEnumerable<string> entryNames)
-        : this(entryNames.Select(name => (name, "fake Sass launcher")))
-    {
-    }
-
-    public FakeTarArchiveProvider(IEnumerable<(string Name, string Content)> entries)
-    {
-        _entries = entries
-            .Select(e => (e.Name, Encoding.UTF8.GetBytes(e.Content)))
-            .ToList();
+        _entries = entries;
     }
 
     public void ReadEntries(Stream tarStream, Action<string, bool, Stream> readEntry)
     {
-        foreach (var (name, content) in _entries)
+        foreach (var entry in _entries)
         {
-            using var stream = new MemoryStream(content);
-            readEntry(name, false, stream);
+            using var stream = new MemoryStream(entry.Content);
+            readEntry(entry.Name, entry.IsDirectory, stream);
         }
     }
 }
