@@ -142,6 +142,44 @@ public class SassRuntimeResolverTests
         Assert.Equal(new[] { snapshot }, result.Arguments);
     }
 
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void ResolveSassLaunchCommand_WhenOfficialBundleIsIncomplete_ShouldLaunchWrapper(
+        bool hasDart,
+        bool hasSnapshot)
+    {
+        // Arrange
+        var platform = Platform.WindowsX64;
+        var runtimesPath = "/packs/win-x64/runtimes";
+        var launcher = SassRuntimeResolver.GetLauncherPath(runtimesPath, platform);
+        var bundleDirectory = Path.GetDirectoryName(launcher)!;
+        var fileSystem = new MockFileSystem();
+        fileSystem.AddFile(launcher, new MockFileData("sass"));
+
+        if (hasDart)
+        {
+            fileSystem.AddFile(Path.Combine(bundleDirectory, "src", "dart.exe"), new MockFileData("dart"));
+        }
+
+        if (hasSnapshot)
+        {
+            fileSystem.AddFile(Path.Combine(bundleDirectory, "src", "sass.snapshot"), new MockFileData("snapshot"));
+        }
+
+        // Act
+        var result = SassRuntimeResolver.ResolveSassLaunchCommand(
+            fileSystem,
+            NoOpChmodProvider.Instance,
+            platform,
+            runtimeDirectory: runtimesPath);
+
+        // Assert
+        Assert.Equal(launcher, result.DisplayPath);
+        Assert.Equal(launcher, result.FileName);
+        Assert.Empty(result.Arguments);
+    }
+
     [Fact]
     public void ResolveSassLauncher_WithExplicitDirectory_ShouldIgnorePacks()
     {
