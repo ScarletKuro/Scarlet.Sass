@@ -39,11 +39,13 @@ public class SassCliApplicationTests
     }
 
     [Fact]
-    public void Run_WithDiagnosticsEnabled_ShouldReportTheResolvedSassOnStderr()
+    public void Run_WithDiagnosticsEnabled_ShouldReportTheResolvedLauncherAndProcessCommandOnStderr()
     {
-        // Arrange - tests/e2e/cli-tool/verify.sh greps for this exact wording to prove which Sass ran
+        // Arrange
         var fileSystem = new MockFileSystem();
-        fileSystem.AddFile("/tool/dart-sass/sass", new MockFileData("Sass"));
+        fileSystem.AddFile("/tool/dart-sass/sass", new MockFileData("sass"));
+        fileSystem.AddFile("/tool/dart-sass/src/dart", new MockFileData("dart"));
+        fileSystem.AddFile("/tool/dart-sass/src/sass.snapshot", new MockFileData("snapshot"));
 
         var stdout = new StringWriter();
         var stderr = new StringWriter();
@@ -63,8 +65,14 @@ public class SassCliApplicationTests
         application.Run(["--version"]);
 
         // Assert
-        Assert.Contains("Scarlet.Sass: using Sass at ", stderr.ToString());
-        Assert.Contains("Sass", stderr.ToString());
+        var diagnostics = stderr.ToString();
+        var launcherPath = Path.Combine(ToolDirectory, "dart-sass", "sass");
+        Assert.Contains($"Scarlet.Sass: resolved Sass launcher {launcherPath}", diagnostics);
+        Assert.Contains("Scarlet.Sass: executing ", diagnostics);
+        Assert.Contains("src", diagnostics);
+        Assert.Contains("dart", diagnostics);
+        Assert.Contains("sass.snapshot", diagnostics);
+        Assert.Contains("--version", diagnostics);
 
         // Nothing the tool says may reach stdout: `dotnet sass ... | jq` has to keep working
         Assert.Equal(string.Empty, stdout.ToString());

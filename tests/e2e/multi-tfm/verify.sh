@@ -106,12 +106,12 @@ if [ ! -f wwwroot/css/site.css ]; then
 fi
 ok "CSS output was created"
 
-RUN_COUNT="$(grep -c "Executing: sass" build.log || true)"
+RUN_COUNT="$(grep -c "Executing:" build.log || true)"
 # If this count becomes 0, the target did not run. If it becomes greater than 1, Sass has leaked into inner
 # TFM builds and multi-targeted RCLs will do duplicate work or fight over the same wwwroot files.
 if [ "$RUN_COUNT" -ne 1 ]; then
     echo "Expected Sass to run once in the multi-TFM outer build, saw $RUN_COUNT run(s)"
-    grep "Executing: sass" build.log || true
+    grep "Executing:" build.log || true
     fail "Sass did not run exactly once"
 fi
 ok "Sass ran once in the multi-TFM outer build"

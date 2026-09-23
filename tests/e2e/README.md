@@ -128,7 +128,7 @@ The scripts escape Windows backslashes before running `sed`, so paths like `D:\a
 3. Copies checked-in Sass fixtures into `Sass/`.
 4. Builds with normal verbosity and captures `build.log`.
 5. Verifies `wwwroot/css/site.css` exists.
-6. Counts `Executing: sass` and requires exactly one invocation.
+6. Counts `Executing:` and requires exactly one invocation.
 7. Packs with `--no-build --configuration Debug`.
 8. Opens the `.nupkg` and verifies generated CSS appears under `staticwebassets/css/site.css`.
 
@@ -277,7 +277,7 @@ The scripts skip cleanup when `$CI` is set so failed runs leave their temporary 
 
 **Sass did not run**
 
-- Inspect `build.log` for `Sass runtime pack`, `Using Sass at`, and `Executing: sass`.
+- Inspect `build.log` for `Sass runtime pack`, `Using Sass at`, and `Executing:`.
 - Confirm the project has explicit `@(SassBeforeStaticWebAssets)` items. There is no implicit `Sass/` folder convention.
 - Confirm the runtime package contributes `@(SassRuntimePack)` from `build/` and `buildMultiTargeting/`.
 

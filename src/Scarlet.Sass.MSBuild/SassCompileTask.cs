@@ -123,9 +123,10 @@ public sealed class SassCompileTask : Task
             {
                 var groupedEntries = group.ToArray();
                 var arguments = BuildArguments(groupedEntries[0].Settings, groupedEntries);
-                Log.LogMessage(MessageImportance.High, $"Executing: sass {arguments}");
+                var processArguments = SassCommandLine.BuildProcessArguments(sassCommand, arguments);
+                Log.LogMessage(MessageImportance.High, $"Executing: {SassCommandLine.FormatProcessCommand(sassCommand, processArguments)}");
 
-                var result = RunProcess(sassCommand, arguments, gate);
+                var result = RunProcess(sassCommand, processArguments, gate);
                 if (result is null)
                 {
                     return false;
@@ -372,7 +373,7 @@ public sealed class SassCompileTask : Task
 
         foreach (var loadPath in globalSettings.LoadPaths)
         {
-            args.Add($"--load-path={Quote(loadPath)}");
+            args.Add($"--load-path={SassCommandLine.QuoteArgument(loadPath)}");
         }
 
         if (!string.IsNullOrWhiteSpace(globalSettings.PkgImporter))
@@ -397,17 +398,14 @@ public sealed class SassCompileTask : Task
 
         foreach (var entry in entries)
         {
-            args.Add($"{Quote(entry.InputPath)}:{Quote(entry.OutputPath)}");
+            args.Add($"{SassCommandLine.QuoteArgument(entry.InputPath)}:{SassCommandLine.QuoteArgument(entry.OutputPath)}");
         }
 
         return string.Join(" ", args);
     }
 
-    private ProcessResult? RunProcess(SassLaunchCommand command, string arguments, TaskLifetimeGate gate)
+    private ProcessResult? RunProcess(SassLaunchCommand command, string processArguments, TaskLifetimeGate gate)
     {
-        var processArguments = string.Join(
-            " ",
-            command.Arguments.Select(Quote).Concat(new[] { arguments }));
         var startInfo = new ProcessStartInfo
         {
             FileName = command.FileName,
@@ -643,8 +641,6 @@ public sealed class SassCompileTask : Task
     }
 
     private static string Override(string metadata, string fallback) => string.IsNullOrWhiteSpace(metadata) ? fallback : metadata;
-
-    private static string Quote(string value) => "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
 
     private sealed class SassSettings
     {

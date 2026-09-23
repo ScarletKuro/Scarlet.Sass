@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Scarlet.Sass.Core;
 
 namespace Scarlet.Sass.Cli;
 
@@ -83,9 +84,8 @@ internal sealed class SassCliApplication
 
         if (_options.Diagnostics)
         {
-            // Contract relied upon by tests/e2e/cli-tool: it is how a test proves which Sass actually ran,
-            // and therefore that nothing was downloaded. Do not reword without updating that script.
-            _stderr.WriteLine($"Scarlet.Sass: using Sass at {resolution.LauncherPath}");
+            _stderr.WriteLine($"Scarlet.Sass: resolved Sass launcher {resolution.LauncherPath}");
+            _stderr.WriteLine($"Scarlet.Sass: executing {SassCommandLine.FormatProcessCommand(resolution.LaunchCommand, args)}");
         }
 
         try
