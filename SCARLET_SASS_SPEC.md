@@ -706,6 +706,13 @@ Task implementation rules:
 - Use file system and process abstractions for tests.
 - Pack every task dependency next to the task assembly.
 - Keep the task target framework compatible with the intended MSBuild loading surface.
+- If the task targets modern .NET instead of `netstandard2.0`, register it explicitly for full-framework
+  MSBuild with `Runtime="NET"` and `TaskFactory="TaskHostFactory"` when `$(MSBuildRuntimeType) == 'Full'`,
+  and use the in-process registration only when `$(MSBuildRuntimeType) == 'Core'`.
+- Do not use .NET-only APIs in `.props` or `.targets` property functions unless they exist in the
+  full-framework MSBuild engine. Property functions run in the MSBuild engine process, not in the task host.
+  For example, avoid `$([System.IO.Path]::GetRelativePath(...))`; compute relative paths in the task and
+  return them as metadata such as `%(_SassGeneratedFiles.RelativePath)`.
 
 ## Build Target Sketch
 
@@ -971,6 +978,17 @@ Weak points for Scarlet.Sass's target audience:
 
 - The Embedded Sass Protocol is valuable, but it increases implementation and dependency complexity for an
   MSBuild task whose common case can be handled by one Dart Sass CLI process per outer build.
+- Its `EmbeddedSass.Net.MsBuild` package currently targets `net10.0` and registers the task with a plain
+  `UsingTask` that omits `Runtime="NET"` and `TaskFactory="TaskHostFactory"`. Testing against Visual Studio
+  2026 Enterprise MSBuild 18.9.1 (`MSBuildRuntimeType=Full`) showed that MSBuild falls back to
+  out-of-process execution and emits a warning, while `dotnet build` with .NET 10 (`MSBuildRuntimeType=Core`)
+  runs successfully. Scarlet.Sass should avoid relying on that fallback and should declare the intended task
+  host explicitly.
+- The same Visual Studio 2026 test failed after task execution because the `.targets` file used
+  `$([System.IO.Path]::GetRelativePath(...))`. That property function runs inside the full-framework MSBuild
+  engine, where `System.IO.Path.GetRelativePath` is unavailable, even if the custom task itself runs in a
+  .NET task host. Scarlet.Sass should calculate relative paths inside the task and expose them as item
+  metadata instead of depending on modern .NET APIs in MSBuild property functions.
 - If a package only ships `build/` and `buildTransitive/` assets, it risks missing the multi-targeting outer
   build path. Scarlet.Sass should include `buildMultiTargeting/` from day one.
 - Published claims like "resolves static web assets" need e2e coverage against Blazor/Razor Class Libraries,
