@@ -244,14 +244,14 @@ public sealed class SassDownloader
         using var file = _fileSystem.File.OpenRead(archivePath);
         using var gzip = new GZipStream(file, CompressionMode.Decompress);
 
-        foreach (var entry in _tarProvider.ReadEntries(gzip))
+        _tarProvider.ReadEntries(gzip, (entry, entryStream) =>
         {
             var destinationPath = ResolveArchiveDestination(destinationDirectory, entry.Name);
 
             if (entry.IsDirectory)
             {
                 _fileSystem.Directory.CreateDirectory(destinationPath);
-                continue;
+                return;
             }
 
             var directory = Path.GetDirectoryName(destinationPath);
@@ -261,8 +261,8 @@ public sealed class SassDownloader
             }
 
             using var output = _fileSystem.File.Create(destinationPath);
-            output.Write(entry.Content, 0, entry.Content.Length);
-        }
+            entryStream.CopyTo(output);
+        });
     }
 
     private static void EnsureSuccessOrThrow(HttpResponseMessage response, string downloadUrl)

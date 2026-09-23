@@ -70,8 +70,8 @@ public class SassDownloaderTests
     [Fact]
     public void DownloadRuntime_ForLinux_ShouldExtractARealTarGzArchive()
     {
-        // Arrange - Linux/macOS never touch IZipArchiveProvider; they go through the hand-rolled tar/gzip
-        // reader, so this exercises that path with a genuinely gzipped tar stream rather than a zip.
+        // Arrange - Linux/macOS never touch IZipArchiveProvider; they go through the tar/gzip reader, so
+        // this exercises that path with a genuinely gzipped tar stream rather than a zip.
         var platform = Platform.LinuxX64;
         var tempDir = "/test-runtime";
         var expectedPath = ExpectedLauncherPath(tempDir, platform);
@@ -627,8 +627,8 @@ public class SassDownloaderTests
     }
 
     /// <summary>
-    /// Builds a real gzip-compressed tar archive so tests exercise <c>SassDownloader</c>'s own tar reader
-    /// (used for every non-Windows platform) rather than the zip abstraction.
+    /// Builds a real gzip-compressed tar archive so tests exercise <c>SassDownloader</c>'s tar reader (used
+    /// for every non-Windows platform) rather than the zip abstraction.
     /// </summary>
     private static MemoryStream CreateMockTarGz(params (string Name, string Content)[] entries)
     {
@@ -664,6 +664,21 @@ public class SassDownloaderTests
         Array.Copy(sizeBytes, 0, header, 124, sizeBytes.Length);
 
         header[156] = (byte)'0'; // regular file typeflag
+        header[257] = (byte)'u';
+        header[258] = (byte)'s';
+        header[259] = (byte)'t';
+        header[260] = (byte)'a';
+        header[261] = (byte)'r';
+
+        for (var i = 148; i < 156; i++)
+        {
+            header[i] = (byte)' ';
+        }
+
+        var checksum = header.Sum(b => b);
+        var checksumOctal = Convert.ToString(checksum, 8).PadLeft(6, '0') + "\0 ";
+        var checksumBytes = Encoding.ASCII.GetBytes(checksumOctal);
+        Array.Copy(checksumBytes, 0, header, 148, checksumBytes.Length);
 
         stream.Write(header, 0, header.Length);
         stream.Write(content, 0, content.Length);

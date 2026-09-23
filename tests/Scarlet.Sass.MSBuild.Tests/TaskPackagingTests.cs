@@ -60,6 +60,20 @@ public class TaskPackagingTests
         Assert.Contains("Scarlet.Sass.Core.dll", packed);
     }
 
+    [Theory]
+    [InlineData("ICSharpCode.SharpZipLib.dll")]
+    [InlineData("System.Buffers.dll")]
+    [InlineData("System.Memory.dll")]
+    [InlineData("System.Numerics.Vectors.dll")]
+    [InlineData("System.Runtime.CompilerServices.Unsafe.dll")]
+    [InlineData("System.Threading.Tasks.Extensions.dll")]
+    public void SharpZipLibDependencyClosure_ShouldBePackedIntoTheToolsFolder(string assembly)
+    {
+        var packed = PackedToolsAssemblies(LoadTaskProject());
+
+        Assert.Contains(assembly, packed);
+    }
+
     [Fact]
     public void ThirdPartyNotice_ShouldBePackedForPackableProjects()
     {

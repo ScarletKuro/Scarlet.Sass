@@ -82,7 +82,13 @@
     <!-- The task will not load without this: UsingTask points at tools/netstandard2.0/Scarlet.Sass.MSBuild.dll,
          which now depends on Scarlet.Sass.Core.dll sitting next to it. -->
     <None Include="$(OutputPath)\netstandard2.0\Scarlet.Sass.Core.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
+    <None Include="$(OutputPath)\netstandard2.0\ICSharpCode.SharpZipLib.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
+    <None Include="$(OutputPath)\netstandard2.0\System.Buffers.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
     <None Include="$(OutputPath)\netstandard2.0\System.IO.Abstractions.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
+    <None Include="$(OutputPath)\netstandard2.0\System.Memory.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
+    <None Include="$(OutputPath)\netstandard2.0\System.Numerics.Vectors.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
+    <None Include="$(OutputPath)\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
+    <None Include="$(OutputPath)\netstandard2.0\System.Threading.Tasks.Extensions.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
     <None Include="$(OutputPath)\netstandard2.0\TestableIO.System.IO.Abstractions.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
     <None Include="$(OutputPath)\netstandard2.0\TestableIO.System.IO.Abstractions.Wrappers.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
     <None Include="$(OutputPath)\netstandard2.0\Testably.Abstractions.FileSystem.Interface.dll" Pack="true" PackagePath="tools/netstandard2.0/" />
