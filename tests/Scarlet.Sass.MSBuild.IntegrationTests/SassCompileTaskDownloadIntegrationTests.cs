@@ -5,9 +5,8 @@ namespace Scarlet.Sass.MSBuild.IntegrationTests;
 
 /// <summary>
 /// Covers <see cref="SassCompileTask"/>'s <c>SassRuntimeDownload</c> mode end to end, against the real
-/// GitHub release feed - the counterpart to <c>BunDownloadIntegrationTests</c> in Scarlet.Bun. Sass has no
-/// analogue of <c>BunRunTask</c> (the spec forbids a generic command runner), so this drives the download
-/// through the compile task itself rather than through a standalone runner.
+/// GitHub release feed. This drives the download through the compile task itself, because Scarlet.Sass
+/// deliberately does not expose a generic command runner.
 /// </summary>
 public class SassCompileTaskDownloadIntegrationTests
 {

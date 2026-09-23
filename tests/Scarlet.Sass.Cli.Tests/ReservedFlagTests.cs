@@ -27,9 +27,9 @@ public class ReservedFlagTests
 
     public static TheoryData<string[]> InfoFlagNotFirst => new()
     {
-        new[] { "run", "--scarlet-info" },
+        new[] { "input.scss", "--scarlet-info" },
         new[] { "--version", "--scarlet-info" },
-        new[] { "run", "build.mjs", "--", "--scarlet-info" }
+        new[] { "input.scss", "output.css", "--scarlet-info" }
     };
 
     [Theory]

@@ -7,17 +7,12 @@ namespace Scarlet.Sass.MSBuild.IntegrationTests;
 
 /// <summary>
 /// Covers the <c>RunSassBeforeStaticWebAssets</c> target end to end, by running real <c>dotnet build</c>,
-/// <c>pack</c> and <c>publish</c> invocations and asserting on what they produce - the counterpart to
-/// <c>BunBeforeStaticWebAssetsTests</c> in Scarlet.Bun.
+/// <c>pack</c> and <c>publish</c> invocations and asserting on what they produce.
 /// </summary>
 /// <remarks>
-/// Most of Bun's file exercises its generic, per-step item contract (arbitrary <c>Command</c>/
-/// <c>Arguments</c>/<c>WorkingDirectory</c>/<c>ContinueOnError</c>, and a per-item incremental
-/// <c>Inputs</c>/<c>Outputs</c>/<c>StampFile</c> triple) - none of which exists for Sass, whose
-/// <c>SassBeforeStaticWebAssets</c> items describe fixed Sass entry points, not arbitrary steps. Only the
-/// outcome-level scenarios that do not depend on that per-step contract are ported here: static web assets
-/// packing, publish fingerprinting, the real <c>SassTimeoutMilliseconds</c> MSBuild property (as opposed to
-/// setting <c>SassCompileTask.TimeoutMilliseconds</c> directly in-process, which
+/// These tests focus on outcomes that only a real SDK build can prove: static web assets packing, publish
+/// fingerprinting, the real <c>SassTimeoutMilliseconds</c> MSBuild property (as opposed to setting
+/// <c>SassCompileTask.TimeoutMilliseconds</c> directly in-process, which
 /// <see cref="SassCompileTaskIntegrationTests"/> already covers), and <c>SassClean</c>.
 /// </remarks>
 public class SassBeforeStaticWebAssetsTests

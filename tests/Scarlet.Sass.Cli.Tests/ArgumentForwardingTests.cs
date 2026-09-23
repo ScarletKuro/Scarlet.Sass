@@ -18,10 +18,10 @@ public class ArgumentForwardingTests
         Array.Empty<string>(),
         new[] { "--version" },
         new[] { "--help" },
-        new[] { "install" },
-        new[] { "run", "build.mjs" },
-        new[] { "-e", "console.log('a b')" },
-        new[] { "run", "x", "--", "--watch" },
+        new[] { "input.scss", "output.css" },
+        new[] { "--watch", "assets/styles:wwwroot/css" },
+        new[] { "--style=compressed" },
+        new[] { "--load-path", "node_modules", "site.scss", "site.css" },
         new[] { "--" },
         new[] { "--define", "X=\"y\"" },
         new[] { "a b" },
@@ -55,7 +55,7 @@ public class ArgumentForwardingTests
             var application = CreateApplication(new RecordingProcessLauncher(exitCode), out _);
 
             // Act
-            var result = application.Run(new[] { "run", "build.mjs" });
+            var result = application.Run(new[] { "input.scss", "output.css" });
 
             // Assert
             Assert.Equal(exitCode, result);
