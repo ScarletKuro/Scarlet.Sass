@@ -124,7 +124,8 @@ public class SassCompileTaskIntegrationTests
         File.WriteAllText(cssPath, "stale output");
 
         // RuntimeDirectory stays set and wins over runtime pack selection, so the second run still resolves
-        // the same fake Sass and succeeds. The assertion is only about whether the stamp noticed the change.
+        // the same staged Sass runtime and succeeds. The assertion is only about whether the stamp noticed
+        // the change.
         var secondTask = new SassCompileTask
         {
             BuildEngine = new MockBuildEngine(_output),
@@ -157,6 +158,51 @@ public class SassCompileTaskIntegrationTests
 
         Assert.True(File.Exists(cssPath));
         Assert.NotEqual("stale output", File.ReadAllText(cssPath));
+    }
+
+    [Fact]
+    public void CompileTask_WithFailedCompile_ShouldNotCreateSuccessStamp()
+    {
+        using var workspace = TempWorkspace.Create("failed-stamp");
+        workspace.WriteFile("Sass/site.scss", "$broken: ;");
+
+        var item = new TaskItem("Sass/site.scss");
+        item.SetMetadata("OutputPath", "wwwroot/css/site.css");
+
+        var task = CreateTask(workspace, item);
+
+        Assert.False(task.Execute());
+        Assert.False(File.Exists(workspace.PathTo("obj", "Scarlet.Sass", "Sass.settings.stamp")));
+        Assert.False(File.Exists(workspace.PathTo("obj", "Scarlet.Sass", "Sass.generated.txt")));
+    }
+
+    [Fact]
+    public void CompileTask_WithNoRuntimeAtAll_ShouldFailWithResolverMessageAndNoStackTrace()
+    {
+        using var workspace = TempWorkspace.Create("missing-runtime");
+        workspace.WriteFile("Sass/site.scss", ".site { color: red; }");
+
+        var item = new TaskItem("Sass/site.scss");
+        item.SetMetadata("OutputPath", "wwwroot/css/site.css");
+        var buildEngine = new MockBuildEngine(_output);
+        var task = new SassCompileTask
+        {
+            BuildEngine = buildEngine,
+            Compilations = [item],
+            ProjectDirectory = workspace.RootDirectory,
+            Configuration = "Release",
+            OutputStyle = "Compressed",
+            SourceMap = "false",
+            EmbedSources = "false",
+            QuietDeps = "false"
+        };
+
+        Assert.False(task.Execute());
+
+        var error = Assert.Single(buildEngine.Errors).Message;
+        Assert.NotNull(error);
+        Assert.Contains("Sass runtime package not found", error);
+        Assert.DoesNotContain("at Scarlet.Sass.MSBuild.", error);
     }
 
     [Fact]

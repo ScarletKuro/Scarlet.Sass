@@ -93,6 +93,45 @@ public class SassBeforeStaticWebAssetsTests
     }
 
     [Fact]
+    public async Task FailingSass_FailsTheBuildByDefault()
+    {
+        using var workspace = CreateRazorClassLibrary();
+        workspace.WriteFile("Sass/site.scss", "$broken: ;");
+
+        var result = await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}");
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("Sass command failed", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SassStampDirectoryProperty_ShouldPutTheStampAndManifestWhereItAsks()
+    {
+        using var workspace = CreateRazorClassLibrary(
+            additionalProperties: """
+            <SassStampDirectory>custom/stamps</SassStampDirectory>
+            """);
+
+        var build = await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}");
+        Assert.Equal(0, build.ExitCode);
+
+        var stamp = workspace.PathTo("custom", "stamps", "Sass.settings.stamp");
+        var manifest = workspace.PathTo("custom", "stamps", "Sass.generated.txt");
+        Assert.True(File.Exists(stamp), $"Expected a settings stamp at {stamp}.");
+        Assert.True(File.Exists(manifest), $"Expected a generated-file manifest at {manifest}.");
+
+        var defaultStampDirectory = workspace.PathTo("obj", DotnetCli.Configuration, TargetFramework, "Scarlet.Sass");
+        Assert.False(File.Exists(Path.Combine(defaultStampDirectory, "Sass.settings.stamp")));
+        Assert.False(File.Exists(Path.Combine(defaultStampDirectory, "Sass.generated.txt")));
+
+        var clean = await RunDotnet(workspace, $"clean --configuration {DotnetCli.Configuration}");
+        Assert.Equal(0, clean.ExitCode);
+
+        Assert.False(File.Exists(stamp), "dotnet clean should remove the requested settings stamp.");
+        Assert.False(File.Exists(manifest), "dotnet clean should remove the requested generated-file manifest.");
+    }
+
+    [Fact]
     public async Task Clean_RemovesTheGeneratedStampAndManifest()
     {
         using var workspace = CreateRazorClassLibrary();

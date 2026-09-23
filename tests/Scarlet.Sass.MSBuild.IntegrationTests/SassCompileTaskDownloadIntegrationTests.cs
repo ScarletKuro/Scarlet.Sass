@@ -32,7 +32,7 @@ public class SassCompileTaskDownloadIntegrationTests
             var task = new SassCompileTask
             {
                 BuildEngine = new MockBuildEngine(_output),
-                Compilations = new[] { item },
+                Compilations = [item],
                 ProjectDirectory = workspace.RootDirectory,
                 Configuration = "Debug",
                 OutputStyle = "Auto",
@@ -42,6 +42,60 @@ public class SassCompileTaskDownloadIntegrationTests
                 RuntimeDirectory = tempRuntimeDirectory,
                 SassRuntimeDownload = true
                 // SassVersionDownload intentionally omitted - exercises the "resolve latest" path.
+            };
+
+            Assert.True(task.Execute());
+
+            var cssPath = workspace.PathTo("wwwroot", "css", "site.css");
+            Assert.True(File.Exists(cssPath));
+            Assert.Contains(".banner", File.ReadAllText(cssPath));
+
+            var platform = SassRuntimeResolver.GetCurrentPlatform();
+            var launcherPath = SassRuntimeResolver.GetLauncherPath(tempRuntimeDirectory, platform);
+            Assert.True(File.Exists(launcherPath), $"Expected the downloaded runtime at {launcherPath}");
+            _output.WriteLine($"Runtime downloaded to: {launcherPath}");
+        }
+        finally
+        {
+            if (Directory.Exists(tempRuntimeDirectory))
+            {
+                try
+                {
+                    Directory.Delete(tempRuntimeDirectory, recursive: true);
+                }
+                catch (Exception ex)
+                {
+                    _output.WriteLine($"Cleanup failed: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void CompileTask_WithRuntimeDownloadPinnedVersion_ShouldDownloadAndCompile()
+    {
+        using var workspace = TempWorkspace.Create("download-pinned");
+        workspace.WriteFile("Sass/site.scss", ".banner { color: red; }");
+        var tempRuntimeDirectory = Path.Combine(Path.GetTempPath(), $"scarlet-sass-download-test-{Guid.NewGuid():N}");
+
+        var item = new TaskItem("Sass");
+        item.SetMetadata("OutputPath", "wwwroot/css");
+
+        try
+        {
+            var task = new SassCompileTask
+            {
+                BuildEngine = new MockBuildEngine(_output),
+                Compilations = [item],
+                ProjectDirectory = workspace.RootDirectory,
+                Configuration = "Debug",
+                OutputStyle = "Auto",
+                SourceMap = "Auto",
+                EmbedSources = "Auto",
+                QuietDeps = "false",
+                RuntimeDirectory = tempRuntimeDirectory,
+                SassRuntimeDownload = true,
+                SassVersionDownload = "1.104.1"
             };
 
             Assert.True(task.Execute());
@@ -84,7 +138,7 @@ public class SassCompileTaskDownloadIntegrationTests
         var task = new SassCompileTask
         {
             BuildEngine = buildEngine,
-            Compilations = new[] { item },
+            Compilations = [item],
             ProjectDirectory = workspace.RootDirectory,
             SassRuntimeDownload = true
             // RuntimeDirectory not specified - should fail without ever touching the network.
