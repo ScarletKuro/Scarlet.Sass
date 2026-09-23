@@ -40,7 +40,7 @@ public class SassCompileTaskIntegrationTests
         var task = new SassCompileTask
         {
             BuildEngine = new MockBuildEngine(_output),
-            Compilations = new[] { item },
+            Compilations = [item],
             ProjectDirectory = workspace.RootDirectory,
             Configuration = "Debug",
             OutputStyle = "Auto",
@@ -90,6 +90,75 @@ public class SassCompileTaskIntegrationTests
         Assert.Contains(removedPath, secondTask.RemovedFiles.Select(static file => file.ItemSpec));
     }
 
+    [Theory]
+    [InlineData(RuntimeSelection.VersionDownload)]
+    [InlineData(RuntimeSelection.RuntimePackItem)]
+    public void CompileTask_WithChangedRuntimeSelection_ShouldRegenerate(RuntimeSelection changed)
+    {
+        using var workspace = TempWorkspace.Create("runtime-pack-stamp");
+        workspace.WriteFile("Sass/site.scss", ".site { color: red; }");
+        var runtimeDirectory = Path.Combine(Directory.GetCurrentDirectory(), "runtimes");
+
+        var item = new TaskItem("Sass/site.scss");
+        item.SetMetadata("OutputPath", "wwwroot/css/site.css");
+        item.SetMetadata("SourceMap", "false");
+
+        var firstTask = new SassCompileTask
+        {
+            BuildEngine = new MockBuildEngine(_output),
+            Compilations = [item],
+            ProjectDirectory = workspace.RootDirectory,
+            Configuration = "Release",
+            OutputStyle = "Compressed",
+            SourceMap = "false",
+            EmbedSources = "false",
+            QuietDeps = "false",
+            RuntimeDirectory = runtimeDirectory
+        };
+        Assert.True(firstTask.Execute());
+
+        var cssPath = workspace.PathTo("wwwroot", "css", "site.css");
+        var directoryName = Path.GetDirectoryName(cssPath);
+        Assert.NotNull(directoryName);
+        Directory.CreateDirectory(directoryName);
+        File.WriteAllText(cssPath, "stale output");
+
+        // RuntimeDirectory stays set and wins over runtime pack selection, so the second run still resolves
+        // the same fake Sass and succeeds. The assertion is only about whether the stamp noticed the change.
+        var secondTask = new SassCompileTask
+        {
+            BuildEngine = new MockBuildEngine(_output),
+            Compilations = [item],
+            ProjectDirectory = workspace.RootDirectory,
+            Configuration = "Release",
+            OutputStyle = "Compressed",
+            SourceMap = "false",
+            EmbedSources = "false",
+            QuietDeps = "false",
+            RuntimeDirectory = runtimeDirectory
+        };
+
+        switch (changed)
+        {
+            case RuntimeSelection.VersionDownload:
+                secondTask.SassVersionDownload = "1.2.3";
+                break;
+
+            case RuntimeSelection.RuntimePackItem:
+                var pack = new TaskItem("Contoso.Sass.Runtime.custom");
+                pack.SetMetadata(SassRuntimePack.RidMetadataName, SassRuntimeResolver.GetRuntimeIdentifier(SassRuntimeResolver.GetCurrentPlatform()));
+                pack.SetMetadata(SassRuntimePack.RuntimesPathMetadataName, workspace.PathTo("custom-runtimes"));
+                pack.SetMetadata(SassRuntimePack.PriorityMetadataName, "50");
+                secondTask.RuntimePacks = [pack];
+                break;
+        }
+
+        Assert.True(secondTask.Execute());
+
+        Assert.True(File.Exists(cssPath));
+        Assert.NotEqual("stale output", File.ReadAllText(cssPath));
+    }
+
     [Fact]
     public void CompileTask_WhenTimeoutElapses_KillsTheProcessAndFails()
     {
@@ -104,7 +173,7 @@ public class SassCompileTaskIntegrationTests
         var task = new SassCompileTask
         {
             BuildEngine = buildEngine,
-            Compilations = new[] { item },
+            Compilations = [item],
             ProjectDirectory = workspace.RootDirectory,
             Configuration = "Debug",
             OutputStyle = "Auto",
@@ -126,7 +195,7 @@ public class SassCompileTaskIntegrationTests
         return new SassCompileTask
         {
             BuildEngine = new MockBuildEngine(),
-            Compilations = new[] { item },
+            Compilations = [item],
             ProjectDirectory = workspace.RootDirectory,
             Configuration = "Release",
             OutputStyle = "Compressed",
@@ -135,5 +204,11 @@ public class SassCompileTaskIntegrationTests
             QuietDeps = "false",
             RuntimeDirectory = Path.Combine(RepositoryRoot.Path, "src", "Scarlet.Sass.MSBuild", "bin", "runtimes")
         };
+    }
+
+    public enum RuntimeSelection
+    {
+        VersionDownload,
+        RuntimePackItem
     }
 }
