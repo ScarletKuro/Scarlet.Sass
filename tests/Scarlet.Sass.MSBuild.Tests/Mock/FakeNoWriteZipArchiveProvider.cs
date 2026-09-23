@@ -15,7 +15,16 @@ public sealed class FakeNoWriteZipArchiveProvider : IZipArchiveProvider
         }
 
         stream.Position = 0;
-        return new ZipArchive(stream, ZipArchiveMode.Read);
+
+        try
+        {
+            return new ZipArchive(stream, ZipArchiveMode.Read);
+        }
+        catch
+        {
+            stream.Dispose();
+            throw;
+        }
     }
 
     public void ExtractToFile(ZipArchiveEntry source, string destinationFileName, bool overwrite)

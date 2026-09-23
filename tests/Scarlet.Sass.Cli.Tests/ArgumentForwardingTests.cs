@@ -116,7 +116,7 @@ public class ArgumentForwardingTests
 
     private static SassCliApplication CreateApplication(IProcessLauncher launcher, out string embeddedPath)
     {
-        const string toolDirectory = "/tool";
+        const string toolDirectory = "tool";
         embeddedPath = Path.Combine(toolDirectory, "dart-sass", "sass");
 
         var fileSystem = new MockFileSystem();

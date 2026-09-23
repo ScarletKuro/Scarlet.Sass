@@ -34,7 +34,20 @@ internal sealed class FakeZipArchiveProvider : IZipArchiveProvider
         _zipBytes = buffer.ToArray();
     }
 
-    public ZipArchive OpenRead(string archiveFileName) => new(new MemoryStream(_zipBytes), ZipArchiveMode.Read);
+    public ZipArchive OpenRead(string archiveFileName)
+    {
+        var stream = new MemoryStream(_zipBytes);
+
+        try
+        {
+            return new ZipArchive(stream, ZipArchiveMode.Read);
+        }
+        catch
+        {
+            stream.Dispose();
+            throw;
+        }
+    }
 
     public void ExtractToFile(ZipArchiveEntry source, string destinationFileName, bool overwrite)
     {

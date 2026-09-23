@@ -141,7 +141,7 @@ public class ReservedFlagTests
         IDictionary<string, string>? variables = null,
         TextWriter? stderr = null)
     {
-        const string toolDirectory = "/tool";
+        const string toolDirectory = "tool";
 
         var fileSystem = new MockFileSystem();
         fileSystem.AddFile(Path.Combine(toolDirectory, "dart-sass", "sass"), new MockFileData("Sass"));
