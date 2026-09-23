@@ -18,7 +18,7 @@ public sealed class TarArchiveProvider : ITarArchiveProvider
     public static TarArchiveProvider Instance { get; } = new();
 
     /// <inheritdoc />
-    public void ReadEntries(Stream tarStream, Action<TarArchiveEntry, Stream> readEntry)
+    public void ReadEntries(Stream tarStream, Action<string, bool, Stream> readEntry)
     {
         using var archive = new TarInputStream(tarStream, Encoding.UTF8);
         archive.IsStreamOwner = false;
@@ -32,13 +32,13 @@ public sealed class TarArchiveProvider : ITarArchiveProvider
 
             if (entry.IsDirectory)
             {
-                readEntry(new TarArchiveEntry(entry.Name, isDirectory: true), Stream.Null);
+                readEntry(entry.Name, true, Stream.Null);
                 continue;
             }
 
             if (IsRegularFile(entry))
             {
-                readEntry(new TarArchiveEntry(entry.Name, isDirectory: false), archive);
+                readEntry(entry.Name, false, archive);
             }
         }
     }
@@ -46,6 +46,6 @@ public sealed class TarArchiveProvider : ITarArchiveProvider
     private static bool IsRegularFile(TarEntry entry)
     {
         var typeFlag = entry.TarHeader.TypeFlag;
-        return typeFlag is TarHeader.LF_NORMAL or TarHeader.LF_OLDNORM or TarHeader.LF_CONTIG;
+        return typeFlag is TarHeader.LF_NORMAL or TarHeader.LF_OLDNORM;
     }
 }

@@ -11,7 +11,7 @@ namespace Scarlet.Sass.MSBuild.Tests.Mock;
 /// </summary>
 public sealed class FakeTarArchiveProvider : ITarArchiveProvider
 {
-    private readonly IReadOnlyList<(TarArchiveEntry Entry, byte[] Content)> _entries;
+    private readonly IReadOnlyList<(string Name, byte[] Content)> _entries;
 
     public FakeTarArchiveProvider()
         : this(new[] { ("dart-sass/sass", "fake Sass launcher") })
@@ -26,16 +26,16 @@ public sealed class FakeTarArchiveProvider : ITarArchiveProvider
     public FakeTarArchiveProvider(IEnumerable<(string Name, string Content)> entries)
     {
         _entries = entries
-            .Select(e => (new TarArchiveEntry(e.Name, isDirectory: false), Encoding.UTF8.GetBytes(e.Content)))
+            .Select(e => (e.Name, Encoding.UTF8.GetBytes(e.Content)))
             .ToList();
     }
 
-    public void ReadEntries(Stream tarStream, Action<TarArchiveEntry, Stream> readEntry)
+    public void ReadEntries(Stream tarStream, Action<string, bool, Stream> readEntry)
     {
-        foreach (var (entry, content) in _entries)
+        foreach (var (name, content) in _entries)
         {
             using var stream = new MemoryStream(content);
-            readEntry(entry, stream);
+            readEntry(name, false, stream);
         }
     }
 }
