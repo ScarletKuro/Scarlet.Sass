@@ -181,6 +181,27 @@ public class SassRuntimeResolverTests
     }
 
     [Fact]
+    public void CreateLaunchCommand_WithBareLauncherName_ShouldLaunchWrapper()
+    {
+        var result = SassRuntimeResolver.CreateLaunchCommand(
+            new MockFileSystem(),
+            "sass",
+            Platform.LinuxX64);
+
+        Assert.Equal("sass", result.DisplayPath);
+        Assert.Equal("sass", result.FileName);
+        Assert.Empty(result.Arguments);
+    }
+
+    [Fact]
+    public void GetExecutablePermissionPaths_WithBareLauncherName_ShouldReturnOnlyLauncher()
+    {
+        var result = SassRuntimeResolver.GetExecutablePermissionPaths("sass", Platform.LinuxX64);
+
+        Assert.Equal(new[] { "sass" }, result);
+    }
+
+    [Fact]
     public void ResolveSassLauncher_WithExplicitDirectory_ShouldIgnorePacks()
     {
         // Arrange - an explicit SassRuntimeDirectory is a deliberate override
