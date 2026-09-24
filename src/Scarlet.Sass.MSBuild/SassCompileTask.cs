@@ -135,15 +135,7 @@ public sealed class SassCompileTask : Task
                 if (result.ExitCode != 0)
                 {
                     Log.LogError($"Sass command failed with exit code {result.ExitCode}");
-                    if (!string.IsNullOrWhiteSpace(result.ErrorTail))
-                    {
-                        Log.LogError(result.ErrorTail);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(result.OutputTail))
-                    {
-                        Log.LogError(result.OutputTail);
-                    }
+                    LogOutputDetail(result.OutputTail, result.ErrorTail);
 
                     return false;
                 }
@@ -466,16 +458,21 @@ public sealed class SassCompileTask : Task
         {
             if (!process.WaitForExit(TimeoutMilliseconds))
             {
-                try
-                {
-                    process.Kill();
-                }
-                catch
-                {
-                    // Ignore if process already exited.
-                }
+                KillTimedOutProcess(process);
+
+                // Drain on the way out, bounded exactly like the normal path below. Without this the lines
+                // Sass had already written are discarded, and a timeout is the one failure where "what was
+                // it doing?" is the only question worth asking.
+                process.WaitForExit(OutputDrainGraceMilliseconds);
+                outputClosed.Wait(OutputDrainGraceMilliseconds);
+                errorClosed.Wait(OutputDrainGraceMilliseconds);
 
                 Log.LogError($"Command timed out after {TimeoutMilliseconds}ms");
+
+                // The streamed lines go out as messages, which quiet verbosity drops, so without this the
+                // entire report at -v:q is a single line and no indication of what Sass had managed to do.
+                LogOutputDetail(output.Tail, error.Tail);
+
                 return null;
             }
 
@@ -496,6 +493,41 @@ public sealed class SassCompileTask : Task
         }
 
         return new ProcessResult(process.ExitCode, output.Tail, error.Tail);
+    }
+
+    /// <summary>
+    /// Adds whatever Sass said to a failure that has already been reported.
+    /// </summary>
+    /// <remarks>
+    /// Shared by the timeout and non-zero-exit paths so the two cannot drift into reporting differently.
+    /// The tails are logged unlabelled on purpose: for a compiler, stderr already reads as a diagnostic
+    /// ("Error: expected expression." with a source excerpt), and an "Error output:" prefix would only push
+    /// that text further from the start of the line without adding anything.
+    /// </remarks>
+    private void LogOutputDetail(string outputTail, string errorTail)
+    {
+        if (!string.IsNullOrWhiteSpace(errorTail))
+        {
+            Log.LogError(errorTail);
+        }
+
+        if (!string.IsNullOrWhiteSpace(outputTail))
+        {
+            Log.LogError(outputTail);
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static void KillTimedOutProcess(Process process)
+    {
+        try
+        {
+            process.Kill();
+        }
+        catch
+        {
+            // Best-effort only: the process can exit between WaitForExit(timeout) and Kill().
+        }
     }
 
     private string ResolveStampDirectory()

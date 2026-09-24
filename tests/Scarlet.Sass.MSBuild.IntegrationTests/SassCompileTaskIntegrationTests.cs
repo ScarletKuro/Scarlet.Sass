@@ -236,6 +236,43 @@ public class SassCompileTaskIntegrationTests
         Assert.Contains(buildEngine.Errors, e => e.Message != null && e.Message.Contains("timed out", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void CompileTask_WhenTimeoutElapses_ReportsWhatSassHadAlreadyWritten()
+    {
+        // Killing the process used to discard everything it had written, leaving a timeout reported as one
+        // line and an exit code. At -v:q that is the whole report, because the streamed lines go out as
+        // messages and quiet verbosity drops those - so the failure carried no trace of what Sass was doing.
+        using var workspace = TempWorkspace.Create("timeout-output");
+
+        // @debug writes to stderr and is not conditional on anything, which makes this deterministic where
+        // asserting on compile chatter would not be. The timeout is deliberately well clear of Dart VM
+        // startup: the point is to time out on the watch that follows the compile, not to race the compile.
+        workspace.WriteFile("Sass/site.scss", "@debug \"scarlet-timeout-probe\";\n.banner { color: red; }");
+
+        var item = new TaskItem("Sass");
+        item.SetMetadata("OutputPath", "wwwroot/css");
+        item.SetMetadata("AdditionalArguments", "--watch --poll");
+
+        var buildEngine = new MockBuildEngine(_output);
+        var task = new SassCompileTask
+        {
+            BuildEngine = buildEngine,
+            Compilations = [item],
+            ProjectDirectory = workspace.RootDirectory,
+            Configuration = "Debug",
+            OutputStyle = "Auto",
+            SourceMap = "Auto",
+            EmbedSources = "Auto",
+            QuietDeps = "false",
+            RuntimeDirectory = Path.Combine(RepositoryRoot.Path, "src", "Scarlet.Sass.MSBuild", "bin", "runtimes"),
+            TimeoutMilliseconds = 5000
+        };
+
+        Assert.False(task.Execute());
+        Assert.Contains(buildEngine.Errors, e => e.Message != null && e.Message.Contains("timed out", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(buildEngine.Errors, e => e.Message != null && e.Message.Contains("scarlet-timeout-probe", StringComparison.Ordinal));
+    }
+
     private static SassCompileTask CreateTask(TempWorkspace workspace, TaskItem item)
     {
         return new SassCompileTask
