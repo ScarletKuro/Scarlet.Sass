@@ -214,7 +214,7 @@ public sealed class SassDownloader
         }
         finally
         {
-            DeleteFileIfExists(tempPath);
+            TryDeleteFile(tempPath);
         }
     }
 
@@ -318,11 +318,30 @@ public sealed class SassDownloader
         _fileSystem.File.WriteAllText(versionMarkerPath, version);
     }
 
-    private void DeleteFileIfExists(string path)
+    /// <summary>
+    /// Deletes a scratch file, ignoring any failure.
+    /// </summary>
+    /// <remarks>
+    /// The caller runs in a finally, where a throw would replace whatever actually went wrong - a corrupt
+    /// archive would surface as a delete failure - and on the success path would fail a download that had
+    /// already produced a working runtime. A scanner briefly holding the file open is enough to cause it on
+    /// Windows. There is no Exists check because <see cref="System.IO.File.Delete(string)"/> does not throw
+    /// when the file is missing: a guard would defend against the one outcome that is harmless while doing
+    /// nothing about the locked file that actually fails.
+    ///
+    /// Deliberately not shared with <see cref="DeleteDirectoryIfExists"/>, which must keep throwing: it runs
+    /// before extraction, and carrying on after failing to clear the old tree would produce a runtime mixing
+    /// two versions.
+    /// </remarks>
+    private void TryDeleteFile(string path)
     {
-        if (_fileSystem.File.Exists(path))
+        try
         {
             _fileSystem.File.Delete(path);
+        }
+        catch
+        {
+            // Ignore cleanup errors.
         }
     }
 

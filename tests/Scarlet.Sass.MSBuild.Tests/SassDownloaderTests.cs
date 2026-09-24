@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using System.IO.Compression;
 using System.Text;
@@ -689,6 +690,149 @@ public class SassDownloaderTests
         {
             publishSignal.Set();
             holderThread.Join();
+        }
+    }
+
+    [Fact]
+    public void DownloadRuntime_WhenTempArchiveCannotBeDeleted_ShouldStillSucceed()
+    {
+        // The cleanup runs in a finally, so a throw there would replace whatever the download or extraction
+        // had actually reported - and on this path there was no failure at all: the runtime is extracted and
+        // usable, and only the scratch archive could not be removed. A scanner holding the file open long
+        // enough is all it takes on Windows.
+        var platform = Platform.WindowsX64;
+        var tempDir = "/test-runtime";
+        var expectedPath = ExpectedLauncherPath(tempDir, platform);
+
+        var real = new MockFileSystem();
+        var file = new RecordingFile(real, failDeletes: true);
+        var fileSystem = new MockFileSystemWithFile(real, file);
+
+        var mockHttp = new MockHttpMessageHandler();
+        mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-windows-x64.zip")
+                .Respond("application/zip", CreateMockZip("sass.bat"));
+
+        var downloader = new SassDownloader(
+            mockHttp.ToHttpClient(),
+            new FakeLatestVersionResolver(null),
+            fileSystem,
+            new FakeZipArchiveProvider(real),
+            DefaultTarArchiveProvider(),
+            NoOpChmodProvider.Instance,
+            platform,
+            NoOpSassLogger.Instance);
+
+        // Act
+        var result = downloader.DownloadRuntime(tempDir, "1.4.2");
+
+        // Assert
+        Assert.Equal(expectedPath, result);
+        Assert.True(real.File.Exists(expectedPath), "The runtime should still be published when cleanup fails.");
+        Assert.Equal("1.4.2", real.File.ReadAllText(expectedPath + ".version").Trim());
+
+        // The delete must still be attempted - swallowing the error is the point, skipping the cleanup is not.
+        Assert.Contains(file.Deleted, path => path.EndsWith(".tmp", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DownloadRuntime_ShouldDeleteTheTempArchiveWithoutProbingForItFirst()
+    {
+        // File.Delete does not throw when the file is missing, so an Exists guard would only defend against
+        // the harmless outcome while doing nothing about the locked file that actually fails. This pins that
+        // the guard stays gone: re-adding it is a silent no-op that makes the cleanup look safer than it is.
+        var platform = Platform.WindowsX64;
+        var tempDir = "/test-runtime";
+
+        var real = new MockFileSystem();
+        var file = new RecordingFile(real);
+        var fileSystem = new MockFileSystemWithFile(real, file);
+
+        var mockHttp = new MockHttpMessageHandler();
+        mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-windows-x64.zip")
+                .Respond("application/zip", CreateMockZip("sass.bat"));
+
+        var downloader = new SassDownloader(
+            mockHttp.ToHttpClient(),
+            new FakeLatestVersionResolver(null),
+            fileSystem,
+            new FakeZipArchiveProvider(real),
+            DefaultTarArchiveProvider(),
+            NoOpChmodProvider.Instance,
+            platform,
+            NoOpSassLogger.Instance);
+
+        // Act
+        downloader.DownloadRuntime(tempDir, "1.4.2");
+
+        // Assert
+        Assert.Contains(file.Deleted, path => path.EndsWith(".tmp", StringComparison.Ordinal));
+        Assert.DoesNotContain(file.ExistenceChecks, path => path.EndsWith(".tmp", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Wraps a <see cref="MockFileSystem"/>, swapping in a custom <see cref="IFile"/> and forwarding
+    /// everything else untouched. Subclassing <see cref="MockFile"/> keeps the real behaviour for every
+    /// member the test does not override, so a new call in the downloader cannot silently get a default.
+    /// </summary>
+    private sealed class MockFileSystemWithFile : IFileSystem
+    {
+        private readonly MockFileSystem _inner;
+
+        public MockFileSystemWithFile(MockFileSystem inner, IFile file)
+        {
+            _inner = inner;
+            File = file;
+        }
+
+        public IFile File { get; }
+
+        public IDirectory Directory => _inner.Directory;
+        public IDirectoryInfoFactory DirectoryInfo => _inner.DirectoryInfo;
+        public IDriveInfoFactory DriveInfo => _inner.DriveInfo;
+        public IFileInfoFactory FileInfo => _inner.FileInfo;
+        public IFileStreamFactory FileStream => _inner.FileStream;
+        public IFileSystemWatcherFactory FileSystemWatcher => _inner.FileSystemWatcher;
+        public IFileVersionInfoFactory FileVersionInfo => _inner.FileVersionInfo;
+        public IPath Path => _inner.Path;
+    }
+
+    /// <summary>
+    /// Records the paths passed to <c>Delete</c> and <c>Exists</c>, and optionally fails every delete to
+    /// stand in for a scanner holding a file open. Everything else behaves like the underlying mock.
+    /// </summary>
+    private sealed class RecordingFile : MockFile
+    {
+        private readonly bool _failDeletes;
+
+        public RecordingFile(MockFileSystem inner, bool failDeletes = false) : base(inner)
+        {
+            _failDeletes = failDeletes;
+        }
+
+        public List<string> Deleted { get; } = new();
+
+        public List<string> ExistenceChecks { get; } = new();
+
+        public override void Delete(string path)
+        {
+            Deleted.Add(path);
+
+            if (_failDeletes)
+            {
+                throw new IOException("The process cannot access the file because it is being used by another process.");
+            }
+
+            base.Delete(path);
+        }
+
+        public override bool Exists(string? path)
+        {
+            if (path is not null)
+            {
+                ExistenceChecks.Add(path);
+            }
+
+            return base.Exists(path);
         }
     }
 
