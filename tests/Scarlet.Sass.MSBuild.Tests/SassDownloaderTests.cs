@@ -694,6 +694,41 @@ public class SassDownloaderTests
     }
 
     [Fact]
+    public void DownloadRuntime_WhenThePreviousOwnerAbandonedTheMutex_ShouldCarryOn()
+    {
+        // A build killed mid-download leaves the mutex owned by a thread that no longer exists, and the next
+        // build's WaitOne throws AbandonedMutexException instead of returning. Treating that as failure would
+        // mean one interrupted build poisons every later one until the machine is restarted.
+        //
+        // This is deterministic rather than timing-dependent: abandonment is defined by the owning thread
+        // terminating, and Join proves it has. The mutex is created here and held open for the whole test so
+        // the named object survives the thread that abandons it.
+        var platform = Platform.WindowsX64;
+        var tempDir = "/test-runtime";
+        var launcherPath = ExpectedLauncherPath(tempDir, platform);
+
+        using var mutex = new Mutex(false, SassDownloader.CreateMutexName(launcherPath));
+
+        var abandoningThread = new Thread(() => mutex.WaitOne()) { IsBackground = true };
+        abandoningThread.Start();
+        abandoningThread.Join();
+
+        var fileSystem = new MockFileSystem();
+        var mockHttp = new MockHttpMessageHandler();
+        mockHttp.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-windows-x64.zip")
+                .Respond("application/zip", CreateMockZip("sass.bat"));
+
+        var downloader = CreateDownloader(fileSystem, mockHttp, platform);
+
+        // Act - without the AbandonedMutexException catch this throws instead of downloading.
+        var result = downloader.DownloadRuntime(tempDir, "1.4.2");
+
+        // Assert
+        Assert.Equal(launcherPath, result);
+        Assert.True(fileSystem.File.Exists(launcherPath));
+    }
+
+    [Fact]
     public void DownloadRuntime_WhenTempArchiveCannotBeDeleted_ShouldStillSucceed()
     {
         // The cleanup runs in a finally, so a throw there would replace whatever the download or extraction
