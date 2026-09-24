@@ -132,6 +132,104 @@ public class SassBeforeStaticWebAssetsTests
     }
 
     [Fact]
+    public async Task ConfigurationProperty_ShouldDriveTheDebugAndReleaseDefaults()
+    {
+        // $(Configuration) is the one task input whose C# default ("Debug") agrees with what most tests
+        // build, so dropping Configuration="$(Configuration)" from the .targets changed nothing observable
+        // and no test noticed. Unwired, the task always believes it is a Debug build, and a Release build
+        // silently ships expanded CSS with a source map.
+        //
+        // The spawned build has to use the same configuration as this assembly - the development targets
+        // resolve the task from bin\$(Configuration)\netstandard2.0 - so this asserts whichever half applies
+        // to the current run. CI builds Release, which is the half that matters: there, a dropped wiring
+        // makes the task fall back to Debug and this fails.
+        using var workspace = CreateRazorClassLibrary();
+
+        var build = await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}");
+        Assert.Equal(0, build.ExitCode);
+
+        var css = File.ReadAllText(workspace.PathTo("wwwroot", "css", "site.css"));
+        var sourceMap = workspace.PathTo("wwwroot", "css", "site.css.map");
+
+        if (string.Equals(DotnetCli.Configuration, "Debug", StringComparison.OrdinalIgnoreCase))
+        {
+            Assert.Contains("\n", css, StringComparison.Ordinal);
+            Assert.True(File.Exists(sourceMap), "A Debug build should emit a source map.");
+        }
+        else
+        {
+            // Compressed output is a single line, so the only newline Dart Sass writes is the trailing one.
+            Assert.DoesNotContain("\n", css.TrimEnd());
+            Assert.False(File.Exists(sourceMap), "A Release build should not emit a source map.");
+        }
+    }
+
+    [Fact]
+    public async Task SassOutputStyleAndSourceMapProperties_ShouldOverrideTheConfigurationDefaults()
+    {
+        // Proves both properties survive the trip through the .targets, and that an explicit setting beats
+        // whatever the configuration would otherwise imply - which is the whole point of them being settable.
+        using var workspace = CreateRazorClassLibrary(
+            additionalProperties: """
+            <SassOutputStyle>Compressed</SassOutputStyle>
+            <SassSourceMap>false</SassSourceMap>
+            """);
+
+        var build = await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}");
+        Assert.Equal(0, build.ExitCode);
+
+        var css = File.ReadAllText(workspace.PathTo("wwwroot", "css", "site.css"));
+        Assert.DoesNotContain("\n", css.TrimEnd());
+        Assert.False(
+            File.Exists(workspace.PathTo("wwwroot", "css", "site.css.map")),
+            "SassSourceMap=false should suppress the source map even in a Debug build.");
+    }
+
+    [Fact]
+    public async Task SassEmbedSourcesProperty_ShouldInlineTheOriginalStylesheetsIntoTheSourceMap()
+    {
+        // Like the Configuration test, this bites in Release: EmbedSources defaults to false there, so a
+        // dropped wiring leaves sourcesContent out and this fails. In Debug the default already matches.
+        using var workspace = CreateRazorClassLibrary(
+            additionalProperties: """
+            <SassSourceMap>true</SassSourceMap>
+            <SassEmbedSources>true</SassEmbedSources>
+            """);
+
+        var build = await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}");
+        Assert.Equal(0, build.ExitCode);
+
+        var sourceMap = workspace.PathTo("wwwroot", "css", "site.css.map");
+        Assert.True(File.Exists(sourceMap), "SassSourceMap=true should emit a source map.");
+        Assert.Contains("sourcesContent", File.ReadAllText(sourceMap), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SassLoadPathsProperty_ShouldLetStylesheetsResolveOutsideTheirOwnDirectory()
+    {
+        // A load path is only observable through a stylesheet that cannot compile without it, so this is
+        // also the assertion that the property is reaching Dart Sass rather than being silently ignored.
+        using var workspace = CreateRazorClassLibrary(
+            additionalProperties: """
+            <SassLoadPaths>Shared</SassLoadPaths>
+            """);
+        // A length rather than a colour: compressed output rewrites #663399 to #639, so asserting on a hex
+        // literal would pass in Debug and fail in Release for reasons that have nothing to do with load paths.
+        workspace.WriteFile("Shared/_tokens.scss", "$gap: 12.5px;");
+        workspace.WriteFile("Sass/site.scss", """
+            @use "tokens";
+            .banner { padding: tokens.$gap; }
+            """);
+
+        var build = await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}");
+
+        // The exit code carries most of the claim: without the load path reaching Dart Sass, @use "tokens"
+        // cannot resolve and the build fails outright.
+        Assert.Equal(0, build.ExitCode);
+        Assert.Contains("12.5px", File.ReadAllText(workspace.PathTo("wwwroot", "css", "site.css")), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Clean_RemovesTheGeneratedStampAndManifest()
     {
         using var workspace = CreateRazorClassLibrary();

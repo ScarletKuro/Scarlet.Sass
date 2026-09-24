@@ -91,6 +91,8 @@ Sass partials whose file name starts with `_` are not entry points. They can sti
   <QuietDeps>true</QuietDeps>
   <LoadPaths>node_modules;shared/styles</LoadPaths>
   <PkgImporter>node</PkgImporter>
+  <SilenceDeprecations>import;global-builtin</SilenceDeprecations>
+  <FatalDeprecations>color-functions</FatalDeprecations>
   <AdditionalArguments>--charset</AdditionalArguments>
 </SassBeforeStaticWebAssets>
 ```

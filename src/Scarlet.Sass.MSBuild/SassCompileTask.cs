@@ -250,7 +250,7 @@ public sealed class SassCompileTask : Task
                 }
 
                 var expected = DiscoverDirectoryOutputs(fileSystem, input, output, itemSettings.SourceMap);
-                entries.Add(new SassEntry(input, output, true, expected, itemSettings));
+                entries.Add(new SassEntry(input, output, expected, itemSettings));
             }
             else if (fileSystem.File.Exists(input))
             {
@@ -265,7 +265,7 @@ public sealed class SassCompileTask : Task
                 var expected = itemSettings.SourceMap
                     ? new[] { cssOutput, cssOutput + ".map" }
                     : new[] { cssOutput };
-                entries.Add(new SassEntry(input, cssOutput, false, expected, itemSettings));
+                entries.Add(new SassEntry(input, cssOutput, expected, itemSettings));
             }
             else
             {
@@ -729,20 +729,17 @@ public sealed class SassCompileTask : Task
         public SassEntry(
             string inputPath,
             string outputPath,
-            bool isDirectory,
             IReadOnlyList<string> expectedOutputs,
             SassSettings settings)
         {
             InputPath = inputPath;
             OutputPath = outputPath;
-            IsDirectory = isDirectory;
             ExpectedOutputs = expectedOutputs;
             Settings = settings;
         }
 
         public string InputPath { get; }
         public string OutputPath { get; }
-        public bool IsDirectory { get; }
         public IReadOnlyList<string> ExpectedOutputs { get; }
         public SassSettings Settings { get; }
     }
