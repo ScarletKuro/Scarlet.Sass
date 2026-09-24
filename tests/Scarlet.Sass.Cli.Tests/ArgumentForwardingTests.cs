@@ -47,7 +47,7 @@ public class ArgumentForwardingTests
     }
 
     [Fact]
-    public void Run_ShouldReturnSasssExitCodeUnchanged()
+    public void Run_ShouldReturnSassExitCodeUnchanged()
     {
         // Arrange - 130 is the shell's "terminated by SIGINT"; it must survive as-is
         foreach (var exitCode in new[] { 0, 1, 2, 3, 130, 255 })

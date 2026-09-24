@@ -287,7 +287,20 @@ public sealed class SassDownloader
         return destinationPath;
     }
 
-    private static string GetVersionMarkerPath(string launcherPath) => launcherPath + ".version";
+    /// <summary>
+    /// Gets the path of the marker file recording which Dart Sass version a download cache entry holds.
+    /// </summary>
+    /// <remarks>
+    /// The marker doubles as the commit record for a download. It lives inside the extracted
+    /// <c>dart-sass</c> directory, so a re-download removes it along with the rest of the tree before
+    /// extracting and writes it again only once the launcher is in place. A cache entry with a launcher but
+    /// no marker is therefore an interrupted extraction rather than a usable runtime: the tree can still be
+    /// missing the Dart VM or the snapshot the launcher execs into. Readers of the download cache have to
+    /// check for the marker, including the ones that never take the download mutex.
+    /// </remarks>
+    /// <param name="launcherPath">The launcher path the marker sits beside.</param>
+    /// <returns>The full path of the version marker file.</returns>
+    public static string GetVersionMarkerPath(string launcherPath) => launcherPath + ".version";
 
     private bool IsCacheValidForVersion(string launcherPath, string versionMarkerPath, string expectedVersion)
     {

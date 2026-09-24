@@ -612,6 +612,86 @@ public class SassDownloaderTests
         }
     }
 
+    [Fact]
+    public async Task DownloadRuntime_WhenAnotherProcessPublishesWhileWaiting_ShouldSkipTheDownload()
+    {
+        // The re-check after acquiring the mutex is the entire reason the mutex exists, and nothing covered
+        // it. Without it every process that queued behind the winner would re-download and re-extract on top
+        // of the tree the others are already running from - and because extraction deletes dart-sass/ before
+        // writing it back, that would take a good cache entry apart underneath them.
+        var platform = Platform.WindowsX64;
+        const string runtimeDirectory = "/test-runtime";
+        var launcherPath = ExpectedLauncherPath(runtimeDirectory, platform);
+
+        var fileSystem = new MockFileSystem();
+        // No handler is registered, so the assertions below are backed up by the request failing outright if
+        // the downloader ever decides to go to the network.
+        using var mockHttp = new MockHttpMessageHandler();
+        var logger = new RecordingSassLogger();
+        var downloader = new SassDownloader(
+            mockHttp.ToHttpClient(),
+            new FakeLatestVersionResolver(null),
+            fileSystem,
+            new FakeZipArchiveProvider(fileSystem),
+            DefaultTarArchiveProvider(),
+            NoOpChmodProvider.Instance,
+            platform,
+            logger);
+
+        using var mutexHeldSignal = new ManualResetEventSlim(false);
+        using var publishSignal = new ManualResetEventSlim(false);
+
+        var holderThread = new Thread(() =>
+        {
+            using var mutex = new Mutex(false, SassDownloader.CreateMutexName(launcherPath), out _);
+            mutex.WaitOne();
+            mutexHeldSignal.Set();
+            publishSignal.Wait();
+
+            // Publish the way a real download does, marker last, while still holding the mutex.
+            fileSystem.AddFile(launcherPath, new MockFileData("sass"));
+            fileSystem.AddFile(SassDownloader.GetVersionMarkerPath(launcherPath), new MockFileData("1.4.2"));
+
+            mutex.ReleaseMutex();
+        })
+        {
+            IsBackground = true
+        };
+        holderThread.Start();
+
+        try
+        {
+            mutexHeldSignal.Wait();
+
+            var download = Task.Run(() => downloader.DownloadRuntime(runtimeDirectory, "1.4.2", mutexTimeoutSeconds: 60));
+
+            // This message is logged after the pre-mutex cache check and before WaitOne, so seeing it means
+            // the downloader looked at an empty cache and is now queued behind the holder. Publishing before
+            // that point would exercise the pre-mutex check instead of the branch under test.
+            Assert.True(
+                SpinWait.SpinUntil(
+                    () => logger.Messages.Any(m => m.Contains("Another process is downloading", StringComparison.Ordinal)),
+                    TimeSpan.FromSeconds(30)),
+                "The downloader never reported that it was waiting for another process.");
+
+            publishSignal.Set();
+
+            // Act
+            var result = await download;
+
+            // Assert
+            Assert.Equal(launcherPath, result);
+            Assert.Contains(
+                logger.Messages,
+                m => m.Contains("was downloaded by another process while waiting", StringComparison.Ordinal));
+        }
+        finally
+        {
+            publishSignal.Set();
+            holderThread.Join();
+        }
+    }
+
     private static SassDownloader CreateDownloader(
         MockFileSystem fileSystem,
         MockHttpMessageHandler mockHttp,
@@ -763,9 +843,26 @@ public class SassDownloaderTests
     {
         private readonly List<string> _messages = new();
 
-        public IReadOnlyList<string> Messages => _messages;
+        // Snapshotted under the lock: the contended-mutex tests read this from the test thread while the
+        // downloader is still logging from another one.
+        public IReadOnlyList<string> Messages
+        {
+            get
+            {
+                lock (_messages)
+                {
+                    return _messages.ToList();
+                }
+            }
+        }
 
-        public void LogMessage(string message) => _messages.Add(message);
+        public void LogMessage(string message)
+        {
+            lock (_messages)
+            {
+                _messages.Add(message);
+            }
+        }
     }
 
     private sealed class RecordingChmodProvider : IChmodProvider

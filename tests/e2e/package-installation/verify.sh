@@ -18,22 +18,15 @@ WORKSPACE_PATH="$1"
 PACKAGE_VERSION="$2"
 RUNTIME_VERSION="$3"
 
+FAILED=0
+
 section() {
     echo ""
     echo "=========================================="
     echo "$1"
     echo "=========================================="
-}
 
-ok() {
-    echo "✓ $1"
 }
-
-fail() {
-    echo "✗ $1"
-    exit 1
-}
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATES_DIR="$SCRIPT_DIR/templates"
 
@@ -77,77 +70,156 @@ cd "$TEST_DIR"
 DOTNET_RID="$(detect_dotnet_rid)"
 RUNTIME_PACKAGE="$(select_runtime_package "$DOTNET_RID")"
 if [ -z "$RUNTIME_PACKAGE" ]; then
-    fail "Unsupported dotnet RID: ${DOTNET_RID:-<empty>}"
+    echo "✗ Unsupported dotnet RID: ${DOTNET_RID:-<empty>}"
+    exit 1
 fi
 
 section "E2E Test: Package Installation"
 echo "Workspace: $WORKSPACE_PATH"
 echo "Package version: $PACKAGE_VERSION"
 echo "Runtime version: $RUNTIME_VERSION"
-echo "RID: $DOTNET_RID"
-echo "Runtime package: $RUNTIME_PACKAGE"
+echo "✓ Created test directory: $TEST_DIR"
+echo "✓ Runtime detection: dotnet_rid=${DOTNET_RID:-<not detected>} package=$RUNTIME_PACKAGE"
 
 # The temporary project is deliberately created from the same kind of templates a consumer would author:
 # explicit SassBeforeStaticWebAssets items, no JSON configuration convention, and a runtime package reference.
 process_template "$TEMPLATES_DIR/nuget.config.template" "nuget.config"
-ok "Created nuget.config with local package source"
+echo "✓ Created nuget.config with local package source"
 dotnet new web -n TestSassPackage > /dev/null
 cd TestSassPackage
-ok "Created test ASP.NET Core application"
+echo "✓ Created test ASP.NET Core application"
 
 mkdir -p Sass
 process_template "$TEMPLATES_DIR/_variables.scss.template" "Sass/_variables.scss"
 process_template "$TEMPLATES_DIR/site.scss.template" "Sass/site.scss"
 
 process_template "$TEMPLATES_DIR/TestSassPackage.csproj.template" "TestSassPackage.csproj"
-ok "Created Sass inputs and project file"
+echo "✓ Created Sass inputs and project file"
 
 section "Restoring And Building"
 dotnet restore --configfile ../nuget.config
 dotnet build --no-restore --verbosity normal 2>&1 | tee build.log
-ok "Build completed"
+echo "✓ Build completed"
 
 section "Verifying Sass Output"
 if [ ! -f wwwroot/css/site.css ]; then
-    fail "CSS output was not created"
+    echo "✗ CSS output was not created"
+    FAILED=1
+else
+    echo "✓ CSS output was created"
 fi
-ok "CSS output was created"
 
 if [ ! -f wwwroot/css/site.css.map ]; then
-    fail "Source map output was not created"
+    echo "✗ Source map output was not created"
+    FAILED=1
+else
+    echo "✓ Source map output was created"
 fi
-ok "Source map output was created"
 
 if ! grep -q ".package-installation:hover" wwwroot/css/site.css; then
-    echo "Compiled CSS does not contain nested selector output"
+    echo "✗ Nested selector output was missing"
+    FAILED=1
     cat wwwroot/css/site.css
-    fail "Nested selector output was missing"
+else
+    echo "✓ Compiled CSS contains nested selector output"
 fi
-ok "Compiled CSS contains nested selector output"
 
 section "Verifying The Runtime Pack Contract"
 # This proves the packed runtime package's build assets were imported and bound into the task through
 # @(SassRuntimePack). A project-reference test can pass while this is broken in the nupkg.
 if ! grep -qE "(Using|Selected) Sass runtime pack $RUNTIME_PACKAGE" build.log; then
-    echo "Build log did not show runtime pack resolution for $RUNTIME_PACKAGE"
+    echo "✗ Build log did not show runtime pack resolution for $RUNTIME_PACKAGE"
+    FAILED=1
     grep -E "Sass runtime pack|Using Sass at" build.log || true
-    fail "Expected runtime pack resolution was not logged"
+else
+    echo "✓ Sass was resolved from runtime pack $RUNTIME_PACKAGE"
 fi
-ok "Sass was resolved from runtime pack $RUNTIME_PACKAGE"
 
 section "Verifying Static Web Assets"
 dotnet publish --no-build --configuration Debug -o publish-output > /dev/null
 if [ ! -f publish-output/wwwroot/css/site.css ]; then
-    fail "Published output is missing generated static web asset"
+    echo "✗ Published output is missing generated static web asset"
+    FAILED=1
+else
+    echo "✓ Generated CSS was published as a static web asset"
 fi
-ok "Generated CSS was published as a static web asset"
+
+section "Verifying A Project-Authored Pack Override"
+# The README documents declaring your own SassRuntimePack to point the build at a Sass you supply. That path
+# is evaluated differently from the package one - the package's props are imported before the project body -
+# so only a real build proves a project-authored item merges with the package-provided pack and that Priority
+# decides between them. The copy is what makes the two packs distinct: same RID and same directory would be
+# de-duplicated, and the package pack (declared first) would win.
+RESOLVED_SASS="$(grep -m1 'Using Sass at:' build.log | sed 's/.*Using Sass at: //' | tr -d '\r' | tr '\\' '/')"
+
+if [ -z "$RESOLVED_SASS" ] || [ ! -f "$RESOLVED_SASS" ]; then
+    echo "✗ Could not determine the Sass launcher resolved by the first build"
+    FAILED=1
+else
+    # Dart Sass is a directory tree, not a single file: the launcher execs into src/dart and src/sass.snapshot
+    # beside it, so the whole dart-sass folder has to move together. Layout is <rid>/native/dart-sass/<launcher>.
+    LAUNCHER_DIR="$(dirname "$RESOLVED_SASS")"
+    SASS_RID="$(basename "$(dirname "$(dirname "$LAUNCHER_DIR")")")"
+    CUSTOM_RUNTIMES="$TEST_DIR/custom-sass/runtimes"
+
+    mkdir -p "$CUSTOM_RUNTIMES/$SASS_RID/native"
+    cp -r "$LAUNCHER_DIR" "$CUSTOM_RUNTIMES/$SASS_RID/native/"
+    # NuGet carries no permission bits and cp preserves what it found, so re-assert both executables.
+    find "$CUSTOM_RUNTIMES" -type f \( -name sass -o -name dart \) -exec chmod +x {} \; 2>/dev/null || true
+
+    # MSBuild needs a native path; /tmp/... would resolve to C:\tmp\... on Windows
+    if command -v cygpath > /dev/null 2>&1; then
+        CUSTOM_RUNTIMES_MSBUILD="$(cygpath -m "$CUSTOM_RUNTIMES")"
+    else
+        CUSTOM_RUNTIMES_MSBUILD="$CUSTOM_RUNTIMES"
+    fi
+
+    echo "✓ Staged a custom Dart Sass at $CUSTOM_RUNTIMES_MSBUILD"
+
+    # The pack id deliberately sorts after "Scarlet.*" because at equal priority the alphabetically first id
+    # wins - so Priority is the only thing that can explain this pack being chosen.
+    {
+        sed 's|</Project>||' TestSassPackage.csproj
+        cat <<EOF
+  <ItemGroup>
+    <SassRuntimePack Include="Zephyr.Sass.Custom">
+      <Rid>$SASS_RID</Rid>
+      <RuntimesPath>$CUSTOM_RUNTIMES_MSBUILD</RuntimesPath>
+      <Priority>100</Priority>
+    </SassRuntimePack>
+  </ItemGroup>
+</Project>
+EOF
+    } > TestSassPackage.csproj.new && mv TestSassPackage.csproj.new TestSassPackage.csproj
+
+    dotnet build --target:Rebuild --verbosity normal 2>&1 | tee override.log
+    OVERRIDE_STATUS=${PIPESTATUS[0]}
+
+    if [ "$OVERRIDE_STATUS" -ne 0 ]; then
+        echo "✗ Build with a project-authored pack failed with exit code $OVERRIDE_STATUS"
+        FAILED=1
+    elif ! grep -qE "Selected Sass runtime pack Zephyr\.Sass\.Custom .* out of 2 candidates" override.log; then
+        echo "✗ The project-authored pack did not win over $RUNTIME_PACKAGE"
+        grep -E "Sass runtime pack|Using Sass at" override.log || echo "  (no runtime-related log lines)"
+        FAILED=1
+    elif ! grep -q "Using Sass at: .*custom-sass" override.log; then
+        echo "✗ The winning pack was reported but a different Sass was executed"
+        grep -E "Using Sass at" override.log || echo "  (none)"
+        FAILED=1
+    else
+        echo "✓ A project-authored SassRuntimePack with a higher Priority overrode the package-provided pack"
+        echo "✓ The custom Dart Sass is the one that actually ran"
+    fi
+fi
 
 section "Verifying Clean"
 dotnet clean > /dev/null
 if [ -f wwwroot/css/site.css ] || [ -f wwwroot/css/site.css.map ]; then
-    fail "dotnet clean did not remove generated Sass outputs"
+    echo "✗ dotnet clean did not remove generated Sass outputs"
+    FAILED=1
+else
+    echo "✓ dotnet clean removed generated Sass outputs"
 fi
-ok "dotnet clean removed generated Sass outputs"
 
 if [ -z "${CI:-}" ]; then
     cd /
@@ -155,4 +227,8 @@ if [ -z "${CI:-}" ]; then
 fi
 
 section "Result"
-ok "E2E test completed successfully - Sass executed via the SassRuntimePack contract"
+if [ "$FAILED" -ne 0 ]; then
+    echo "✗ E2E package installation test failed"
+    exit 1
+fi
+echo "✓ E2E test completed successfully - Sass executed via the SassRuntimePack contract"

@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
 using Microsoft.Build.Utilities;
@@ -135,9 +136,48 @@ public class SassContractTests
         Assert.DoesNotContain(propertyNames, static name => name.Contains("AppSettings", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact]
-    public void Targets_PassEveryPublicSettingToCompileTask()
+    [Theory]
+    [InlineData("build/Scarlet.Sass.MSBuild.targets")]
+    [InlineData("buildMultiTargeting/Scarlet.Sass.MSBuild.targets")]
+    [InlineData("Scarlet.Sass.MSBuild.targets")]
+    public void Targets_ShouldWireEveryCompileTaskInput(string targetsRelativePath)
     {
+        // Derived from the task rather than listed here on purpose. The hand-written list this replaced had
+        // drifted to cover 12 of 19 inputs, and the gaps were invisible: an unwired input silently falls back
+        // to its C# default, and every default agrees with what the tests already build. Configuration is the
+        // worst of them - unwired, it stays "Debug", so a Release build would quietly emit expanded CSS with
+        // source maps and embedded sources, and the settings stamp would stop changing between the two
+        // configurations. Deleting an attribute has to fail here, not ship.
+        var expected = typeof(SassCompileTask)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            // Outputs are carried by <Output> elements, not attributes, and have non-public setters.
+            .Where(property => property.GetSetMethod() is not null)
+            .Select(property => property.Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+
+        var task = Assert.Single(
+            LoadProject(targetsRelativePath).Descendants("SassCompileTask"));
+
+        var actual = task.Attributes()
+            .Select(attribute => attribute.Name.LocalName)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.Equal(expected, actual);
+
+        // A wired-but-empty attribute passes the set check while behaving exactly like an unwired one.
+        Assert.All(task.Attributes(), attribute => Assert.False(
+            string.IsNullOrWhiteSpace(attribute.Value),
+            $"{attribute.Name.LocalName} is wired to an empty value in {targetsRelativePath}."));
+    }
+
+    [Fact]
+    public void Targets_ShouldPlumbGeneratedFilesIntoContentAndClean()
+    {
+        // The task's inputs moved to Targets_ShouldWireEveryCompileTaskInput, which derives them from the
+        // task instead of listing them. What is left here is the plumbing on the other side of the call:
+        // where generated files go and how clean finds them again.
         var targets = File.ReadAllText(Path.Combine(
             RepositoryRoot.Path,
             "src",
@@ -147,18 +187,6 @@ public class SassContractTests
 
         Assert.Contains("TaskName=\"Scarlet.Sass.MSBuild.SassCompileTask\"", targets);
         Assert.Contains("BeforeTargets=\"DispatchToInnerBuilds;ResolveProjectStaticWebAssets;PreBuildEvent\"", targets);
-        Assert.Contains("Compilations=\"@(SassBeforeStaticWebAssets)\"", targets);
-        Assert.Contains("OutputStyle=\"$(SassOutputStyle)\"", targets);
-        Assert.Contains("SourceMap=\"$(SassSourceMap)\"", targets);
-        Assert.Contains("EmbedSources=\"$(SassEmbedSources)\"", targets);
-        Assert.Contains("QuietDeps=\"$(SassQuietDeps)\"", targets);
-        Assert.Contains("LoadPaths=\"$(SassLoadPaths)\"", targets);
-        Assert.Contains("PkgImporter=\"$(SassPkgImporter)\"", targets);
-        Assert.Contains("SilenceDeprecations=\"$(SassSilenceDeprecations)\"", targets);
-        Assert.Contains("FatalDeprecations=\"$(SassFatalDeprecations)\"", targets);
-        Assert.Contains("AdditionalArguments=\"$(SassAdditionalArguments)\"", targets);
-        Assert.Contains("StampDirectory=\"$(_SassStampDirectory)\"", targets);
-        Assert.Contains("RuntimePacks=\"@(SassRuntimePack)\"", targets);
         Assert.DoesNotContain("GetRelativePath", targets);
         Assert.Contains("<_SassGeneratedContent Include=\"%(_SassGeneratedFiles.RelativePath)\"", targets);
         Assert.Contains("ItemName=\"_SassGeneratedFiles\"", targets);
@@ -194,6 +222,22 @@ public class SassContractTests
         Assert.Contains("$(SassSourceDir)/src/sass.snapshot", targets);
         Assert.Contains("$(RidOutputDir)/$(SassLauncherName)", targets);
         Assert.Contains("$(RidOutputDir)/src/$(SassDartExecutableName)", targets);
+    }
+
+    private static XElement LoadProject(string targetsRelativePath)
+    {
+        var targetsPath = Path.Combine(
+            RepositoryRoot.Path,
+            "src",
+            "Scarlet.Sass.MSBuild",
+            targetsRelativePath.Replace('/', Path.DirectorySeparatorChar));
+
+        Assert.True(File.Exists(targetsPath), $"Targets file not found: {targetsPath}");
+
+        var project = XDocument.Load(targetsPath).Root;
+        Assert.NotNull(project);
+
+        return project;
     }
 
     private static Dictionary<string, string> LoadRuntimeProjectProperties(Platform platform)

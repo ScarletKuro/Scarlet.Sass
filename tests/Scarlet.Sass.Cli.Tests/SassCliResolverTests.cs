@@ -89,6 +89,7 @@ public class SassCliResolverTests
         var options = CreateOptions();
         var cached = SassRuntimeResolver.GetLauncherPath(options.RuntimeDirectory, Platform.LinuxX64);
         fileSystem.AddFile(cached, new MockFileData("sass"));
+        fileSystem.AddFile(SassDownloader.GetVersionMarkerPath(cached), new MockFileData("1.93.2"));
 
         // Act
         var resolution = Resolve(fileSystem, out _, options);
@@ -96,6 +97,22 @@ public class SassCliResolverTests
         // Assert
         Assert.Equal(SassSource.Cache, resolution.Source);
         Assert.Equal(cached, resolution.LauncherPath);
+    }
+
+    [Fact]
+    public void Resolve_WithCachedLauncherButNoVersionMarkerAndDownloadsDisabled_ShouldNotReportItAsUsable()
+    {
+        // Arrange - --scarlet-info must not tell the user a broken cache entry is ready to run.
+        var fileSystem = new MockFileSystem();
+        var options = CreateOptions();
+        var cached = SassRuntimeResolver.GetLauncherPath(options.RuntimeDirectory, Platform.LinuxX64);
+        fileSystem.AddFile(cached, new MockFileData("partially extracted"));
+
+        // Act
+        var resolution = Resolve(fileSystem, out _, options, allowDownload: false);
+
+        // Assert
+        Assert.Equal(SassSource.NotFound, resolution.Source);
     }
 
     [Fact]

@@ -10,6 +10,7 @@ namespace Scarlet.Sass.MSBuild.Tests;
 public class SassTargetsTests
 {
     private const string PackagedTargets = "build/Scarlet.Sass.MSBuild.targets";
+    private const string MultiTargetingTargets = "buildMultiTargeting/Scarlet.Sass.MSBuild.targets";
     private const string DevelopmentTargets = "Scarlet.Sass.MSBuild.targets";
 
     [Fact]
@@ -57,6 +58,35 @@ public class SassTargetsTests
              {developmentTarget}
              """);
     }
+
+    [Theory]
+    [InlineData(MultiTargetingTargets)]
+    [InlineData(DevelopmentTargets)]
+    public void EveryTargetsFile_ShouldInvokeTheCompileTaskIdentically(string targetsRelativePath)
+    {
+        // The two tests above compare whole targets, which leaves buildMultiTargeting out entirely - its
+        // targets legitimately carry different conditions, so it cannot be compared wholesale. The task
+        // invocation inside it is not different, though: all three copies pass the same settings, and the
+        // multi-targeting copy is the one the Razor Class Library scenario actually runs. Drift there would
+        // reach consumers through the primary use case with nothing else watching for it.
+        var packaged = LoadCompileTask(PackagedTargets);
+        var other = LoadCompileTask(targetsRelativePath);
+
+        Assert.True(
+            XNode.DeepEquals(packaged, other),
+            $"""
+             The SassCompileTask invocation differs between the packaged and {targetsRelativePath} targets files.
+
+             {PackagedTargets}:
+             {packaged}
+
+             {targetsRelativePath}:
+             {other}
+             """);
+    }
+
+    private static XElement LoadCompileTask(string targetsRelativePath) =>
+        Assert.Single(LoadProject(targetsRelativePath).Descendants("SassCompileTask"));
 
     private static IReadOnlyList<string> LoadTargetNames(string targetsRelativePath) =>
         LoadProject(targetsRelativePath)

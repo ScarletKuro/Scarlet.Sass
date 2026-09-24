@@ -18,22 +18,15 @@ WORKSPACE_PATH="$1"
 PACKAGE_VERSION="$2"
 RUNTIME_VERSION="$3"
 
+FAILED=0
+
 section() {
     echo ""
     echo "=========================================="
     echo "$1"
     echo "=========================================="
-}
 
-ok() {
-    echo "✓ $1"
 }
-
-fail() {
-    echo "✗ $1"
-    exit 1
-}
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATES_DIR="$SCRIPT_DIR/templates"
 
@@ -65,74 +58,106 @@ DOTNET_RID="$(detect_dotnet_rid)"
 section "E2E Test: Scarlet.Sass.Cli"
 echo "Workspace: $WORKSPACE_PATH"
 echo "Runtime version: $RUNTIME_VERSION"
-echo "RID: ${DOTNET_RID:-<empty>}"
+echo "✓ Created test directory: $TEST_DIR"
+echo "✓ Runtime detection: dotnet_rid=${DOTNET_RID:-<not detected>}"
 
 process_template "$TEMPLATES_DIR/nuget.config.template" "nuget.config"
-ok "Created nuget.config with local package source"
+echo "✓ Created nuget.config with local package source"
 
 section "Installing Local Tool"
 dotnet new tool-manifest > /dev/null
 # The CLI version is $(SassVersion).$(SassCliRevision). With revision 0, NuGet normalizes it to SassVersion.
 dotnet tool install Scarlet.Sass.Cli --version "$RUNTIME_VERSION" --configfile nuget.config > /dev/null
-ok "Installed Scarlet.Sass.Cli into a local tool manifest"
+echo "✓ Installed Scarlet.Sass.Cli into a local tool manifest"
 
 section "Verifying Embedded Runtime"
 RID_PACKAGE_DIR="$NUGET_PACKAGES/scarlet.sass.cli.$DOTNET_RID"
 if [ -n "$DOTNET_RID" ] && [ ! -d "$RID_PACKAGE_DIR" ]; then
-    echo "Expected RID-specific CLI package at $RID_PACKAGE_DIR"
+    echo "✗ RID-specific CLI package was not restored (expected $RID_PACKAGE_DIR)"
+    FAILED=1
     find "$NUGET_PACKAGES" -maxdepth 1 -type d -print || true
-    fail "RID-specific CLI package was not restored"
+else
+    echo "✓ The $DOTNET_RID tool package was restored"
 fi
-ok "The $DOTNET_RID tool package was restored"
 
 EMBEDDED_SASS="$(find "$RID_PACKAGE_DIR" -type f \( -name 'sass' -o -name 'sass.bat' \) 2>/dev/null | head -n 1)"
 if [ -z "$EMBEDDED_SASS" ]; then
-    fail "No embedded Dart Sass launcher found in $RID_PACKAGE_DIR"
+    echo "✗ No embedded Dart Sass launcher found in $RID_PACKAGE_DIR"
+    FAILED=1
+else
+    echo "✓ The tool package ships a Dart Sass launcher"
 fi
-ok "The tool package ships a Dart Sass launcher"
 
 section "Verifying Argument Forwarding And Diagnostics"
 REPORTED_VERSION="$(dotnet sass --version)"
 if [ "$REPORTED_VERSION" != "$RUNTIME_VERSION" ]; then
-    fail "Expected Dart Sass $RUNTIME_VERSION, got '$REPORTED_VERSION'"
+    echo "✗ Expected Dart Sass $RUNTIME_VERSION, got '$REPORTED_VERSION'"
+    FAILED=1
+else
+    echo "✓ 'dotnet sass --version' printed Dart Sass's version ($REPORTED_VERSION)"
 fi
-ok "'dotnet sass --version' printed Dart Sass's version ($REPORTED_VERSION)"
 
 if ! dotnet sass --scarlet-info | grep -q "^Source .*embedded"; then
-    echo "dotnet sass --scarlet-info did not report embedded source"
+    echo "✗ The tool did not report the embedded runtime as its source"
+    FAILED=1
     dotnet sass --scarlet-info || true
-    fail "The tool did not report the embedded runtime as its source"
+else
+    echo "✓ The tool reports the embedded runtime as its source"
 fi
-ok "The tool reports the embedded runtime as its source"
 
 section "Compiling SCSS"
 mkdir -p Sass out
 process_template "$TEMPLATES_DIR/_tokens.scss.template" "Sass/_tokens.scss"
 process_template "$TEMPLATES_DIR/input.scss.template" "Sass/input.scss"
+echo "✓ Created source assets (SCSS)"
 
 dotnet sass Sass/input.scss:out/input.css --style=compressed --no-source-map
+echo "✓ 'dotnet sass' compiled the stylesheet"
 
 if [ ! -f out/input.css ]; then
-    fail "CLI did not create CSS output"
+    echo "✗ CLI did not create CSS output"
+    FAILED=1
+else
+    echo "✓ CLI created CSS output"
 fi
-ok "CLI created CSS output"
+
+section "Verifying Exit Code Propagation"
+# The successful compile above ran under set -e, so reaching this point already proves a working run exits 0.
+# What is left is the failing direction: the tool forwards arguments verbatim, so it must forward the exit
+# code just as literally. A build script that keys off the exit status is silently broken if this regresses.
+# The exact code is Dart Sass's to choose and is not part of any contract Scarlet publishes, so this asserts
+# only that it is non-zero and reports whatever it was.
+printf 'a { color: ; }\n' > Sass/broken.scss
+set +e
+dotnet sass Sass/broken.scss:out/broken.css > /dev/null 2>&1
+BROKEN_STATUS=$?
+set -e
+
+if [ "$BROKEN_STATUS" -eq 0 ]; then
+    echo "✗ A failing Dart Sass compile returned 0 through the tool"
+    FAILED=1
+else
+    echo "✓ Dart Sass's non-zero exit code ($BROKEN_STATUS) propagated through the tool"
+fi
 
 if ! grep -q ".cli-tool:hover" out/input.css; then
-    echo "Compiled CSS does not contain nested selector output"
+    echo "✗ Nested selector output was missing"
+    FAILED=1
     cat out/input.css
-    fail "Nested selector output was missing"
+else
+    echo "✓ Compiled CSS contains nested selector output"
 fi
-ok "Compiled CSS contains nested selector output"
 
 section "Verifying No Download Was Needed"
 # These three checks together prove the embedded path: a RID package was restored, --scarlet-info says the
 # source is embedded, and the only configured download cache was never created.
 if [ -d "$SCARLET_SASS_CACHE_DIR" ]; then
-    echo "Download cache was created even though the embedded runtime was used"
+    echo "✗ The embedded-runtime path unexpectedly created a download cache"
+    FAILED=1
     find "$SCARLET_SASS_CACHE_DIR" -type f | head -5
-    fail "The embedded-runtime path unexpectedly created a download cache"
+else
+    echo "✓ The download cache was never created"
 fi
-ok "The download cache was never created"
 
 if [ -z "${CI:-}" ]; then
     cd /
@@ -140,4 +165,8 @@ if [ -z "${CI:-}" ]; then
 fi
 
 section "Result"
-ok "E2E CLI tool test completed successfully - Sass ran offline from the embedded runtime"
+if [ "$FAILED" -ne 0 ]; then
+    echo "✗ E2E CLI tool test failed"
+    exit 1
+fi
+echo "✓ E2E CLI tool test completed successfully - Sass ran offline from the embedded runtime"

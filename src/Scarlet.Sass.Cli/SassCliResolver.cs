@@ -97,8 +97,16 @@ internal sealed class SassCliResolver
 
         // 3. A previous download. Checked before constructing a downloader so the happy path stays cheap,
         //    and so diagnostics can distinguish "cached" from "would download".
+        //
+        //    The version marker, not the launcher, is what proves the entry is usable. This branch runs
+        //    outside the download mutex, and a download publishes a whole directory tree rather than a single
+        //    file: it deletes dart-sass/, extracts, and writes the marker last. So a launcher without a
+        //    marker means an extraction that was interrupted or is still in flight, and the Dart VM the
+        //    launcher execs into may not be there yet. Taking it would exec a half-written tree - and because
+        //    nothing here would ever repair it, every later run would do the same until the cache was cleared
+        //    by hand. Falling through to the downloader re-downloads and fixes the entry instead.
         var cachedPath = SassRuntimeResolver.GetLauncherPath(options.RuntimeDirectory, _platform);
-        if (_fileSystem.File.Exists(cachedPath))
+        if (_fileSystem.File.Exists(cachedPath) && _fileSystem.File.Exists(SassDownloader.GetVersionMarkerPath(cachedPath)))
         {
             SassRuntimeResolver.EnsureExecutablePermissions(_fileSystem, _chmodProvider, cachedPath, _platform);
 
@@ -110,8 +118,8 @@ internal sealed class SassCliResolver
             return Build(null, SassSource.NotFound, "No Sass launcher is present yet; it would be downloaded on the next run.");
         }
 
-        // 4. Download. SassDownloader handles cross-process races itself with a global mutex and an atomic
-        //    publish, so several tool invocations on a cold cache converge on one download.
+        // 4. Download. SassDownloader handles cross-process races itself with a global mutex and the version
+        //    marker above, so several tool invocations on a cold cache converge on one download.
         var downloader = _downloaderFactory(_platform, log);
         var downloadedPath = downloader.DownloadRuntime(
             options.RuntimeDirectory,

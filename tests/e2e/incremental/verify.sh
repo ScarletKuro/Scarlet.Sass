@@ -18,22 +18,15 @@ WORKSPACE_PATH="$1"
 PACKAGE_VERSION="$2"
 RUNTIME_VERSION="$3"
 
+FAILED=0
+
 section() {
     echo ""
     echo "=========================================="
     echo "$1"
     echo "=========================================="
-}
 
-ok() {
-    echo "✓ $1"
 }
-
-fail() {
-    echo "✗ $1"
-    exit 1
-}
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATES_DIR="$SCRIPT_DIR/templates"
 
@@ -79,77 +72,92 @@ cd "$TEST_DIR"
 DOTNET_RID="$(detect_dotnet_rid)"
 RUNTIME_PACKAGE="$(select_runtime_package "$DOTNET_RID")"
 if [ -z "$RUNTIME_PACKAGE" ]; then
-    fail "Unsupported dotnet RID: ${DOTNET_RID:-<empty>}"
+    echo "✗ Unsupported dotnet RID: ${DOTNET_RID:-<empty>}"
+    exit 1
 fi
 
 section "E2E Test: Incremental Sass Compilation"
 echo "Workspace: $WORKSPACE_PATH"
 echo "Package version: $PACKAGE_VERSION"
 echo "Runtime version: $RUNTIME_VERSION"
-echo "RID: $DOTNET_RID"
-echo "Runtime package: $RUNTIME_PACKAGE"
+echo "✓ Created test directory: $TEST_DIR"
+echo "✓ Runtime detection: dotnet_rid=${DOTNET_RID:-<not detected>} package=$RUNTIME_PACKAGE"
 
 process_template "$TEMPLATES_DIR/nuget.config.template" "nuget.config"
-ok "Created nuget.config with local package source"
+echo "✓ Created nuget.config with local package source"
 dotnet new razorclasslib -n TestRclIncremental > /dev/null
 cd TestRclIncremental
+echo "✓ Created Razor Class Library"
 process_template "$TEMPLATES_DIR/TestRclIncremental.csproj.template" "TestRclIncremental.csproj"
-ok "Created incremental RCL project"
+echo "✓ Updated project file with the Sass package references"
 
 mkdir -p Sass
 process_template "$TEMPLATES_DIR/_variables.scss.template" "Sass/_variables.scss"
 process_template "$TEMPLATES_DIR/style.scss.template" "Sass/site.scss"
+echo "✓ Created source assets (SCSS)"
 
 dotnet restore --configfile ../nuget.config
+echo "✓ Packages restored"
 section "First Build"
 dotnet build --no-restore --verbosity minimal
-ok "First build completed"
+echo "✓ First build completed"
 
 CSS="wwwroot/css/site.css"
 if [ ! -f "$CSS" ]; then
-    fail "CSS output was not created"
+    echo "✗ CSS output was not created"
+    exit 1
 fi
-ok "CSS output was created"
+echo "✓ CSS output was created"
 
 section "Second Build Without Changes"
 FIRST_MTIME="$(mtime "$CSS")"
 sleep 2
 dotnet build --no-restore --verbosity minimal
+echo "✓ Second build completed"
 SECOND_MTIME="$(mtime "$CSS")"
 # This is the heart of the scenario: Scarlet should call Dart Sass with --update and let Dart Sass skip
 # already-current outputs instead of forcing a rewrite on every build.
 if [ "$FIRST_MTIME" != "$SECOND_MTIME" ]; then
-    fail "Unchanged Sass inputs rewrote CSS output; Dart Sass --update should skip it"
+    echo "✗ Unchanged Sass inputs rewrote CSS output; Dart Sass --update should skip it"
+    FAILED=1
+else
+    echo "✓ Unchanged Sass inputs left CSS output untouched"
 fi
-ok "Unchanged Sass inputs left CSS output untouched"
 
 section "Build After Editing Sass"
 sleep 2
 # The changed input comes from a checked-in fixture too; the script only performs the mutation the scenario
 # is specifically testing.
 cat "$TEMPLATES_DIR/update.scss.template" >> Sass/site.scss
+echo "✓ Appended a new selector to the source stylesheet"
 dotnet build --no-restore --verbosity minimal
+echo "✓ Third build completed"
 THIRD_MTIME="$(mtime "$CSS")"
 if [ "$THIRD_MTIME" = "$SECOND_MTIME" ]; then
-    fail "Changed Sass input did not rewrite CSS output"
+    echo "✗ Changed Sass input did not rewrite CSS output"
+    FAILED=1
+else
+    echo "✓ Changed Sass input rewrote CSS output"
 fi
-ok "Changed Sass input rewrote CSS output"
 
 if ! grep -q ".incremental-updated" "$CSS"; then
-    echo "Updated selector missing from compiled CSS"
+    echo "✗ Updated selector missing from compiled CSS"
+    FAILED=1
     cat "$CSS"
-    fail "Updated selector missing from compiled CSS"
+else
+    echo "✓ Updated selector is present in compiled CSS"
 fi
-ok "Updated selector is present in compiled CSS"
 
 section "Verifying Clean"
 dotnet clean > /dev/null
 # Clean must remove generated files through @(FileWrites). If this fails, consumers can keep stale CSS after
 # cleaning the project.
 if [ -f "$CSS" ]; then
-    fail "dotnet clean did not remove generated CSS"
+    echo "✗ dotnet clean did not remove generated CSS"
+    FAILED=1
+else
+    echo "✓ dotnet clean removed generated CSS"
 fi
-ok "dotnet clean removed generated CSS"
 
 if [ -z "${CI:-}" ]; then
     cd /
@@ -157,4 +165,8 @@ if [ -z "${CI:-}" ]; then
 fi
 
 section "Result"
-ok "E2E incremental test completed successfully - Dart Sass --update and clean behaved correctly"
+if [ "$FAILED" -ne 0 ]; then
+    echo "✗ E2E incremental test failed"
+    exit 1
+fi
+echo "✓ E2E incremental test completed successfully - Dart Sass --update and clean behaved correctly"

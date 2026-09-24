@@ -51,6 +51,32 @@ public class SassCliDownloadTests
     }
 
     [Fact]
+    public void Resolve_WithCachedLauncherButNoVersionMarker_ShouldRedownloadInsteadOfUsingIt()
+    {
+        // Arrange - a download deletes dart-sass/, extracts, then writes the marker last, so a launcher with
+        // no marker beside it is an extraction that was interrupted or is still running in another process,
+        // and the tree can be missing the Dart VM the launcher execs into. The cache branch runs outside the
+        // download mutex, so without the marker check it would hand back the half-written tree - and keep
+        // doing so on every later run, since nothing there would ever repair it.
+        var fileSystem = new MockFileSystem();
+        using var handler = new MockHttpMessageHandler();
+
+        var cached = SassRuntimeResolver.GetLauncherPath(Path.Combine(CacheRoot, "runtimes", "1.4.2"), Platform.WindowsX64);
+        fileSystem.AddFile(cached, new MockFileData("partially extracted"));
+
+        handler.Expect($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-windows-x64.zip")
+            .Respond("application/zip", new MemoryStream(new byte[] { 1, 2, 3 }));
+
+        // Act
+        var resolution = Resolve(fileSystem, handler, version: "1.4.2");
+
+        // Assert
+        Assert.Equal(SassSource.Downloaded, resolution.Source);
+        Assert.True(fileSystem.File.Exists(SassDownloader.GetVersionMarkerPath(resolution.LauncherPath!)));
+        handler.VerifyNoOutstandingExpectation();
+    }
+
+    [Fact]
     public void Resolve_ShouldRequestTheVersionScopedDirectory()
     {
         // Arrange - the CLI intentionally asks SassDownloader to use the cache directory scoped to the

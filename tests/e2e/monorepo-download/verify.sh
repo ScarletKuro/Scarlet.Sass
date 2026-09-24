@@ -18,22 +18,15 @@ WORKSPACE_PATH="$1"
 PACKAGE_VERSION="$2"
 SASS_VERSION="$3"
 
+FAILED=0
+
 section() {
     echo ""
     echo "=========================================="
     echo "$1"
     echo "=========================================="
-}
 
-ok() {
-    echo "✓ $1"
 }
-
-fail() {
-    echo "✗ $1"
-    exit 1
-}
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATES_DIR="$SCRIPT_DIR/templates"
 
@@ -79,31 +72,35 @@ section "E2E Test: Monorepo Download"
 echo "Workspace: $WORKSPACE_PATH"
 echo "Package version: $PACKAGE_VERSION"
 echo "Sass version: $SASS_VERSION"
-echo "RID: $(detect_dotnet_rid)"
-echo "Shared runtime: $SHARED_RUNTIME_DIR"
+echo "✓ Created test directory: $TEST_DIR"
+echo "✓ Shared runtime directory: $SHARED_RUNTIME_DIR"
+echo "✓ Runtime detection: dotnet_rid=$(detect_dotnet_rid)"
 
 process_template "$TEMPLATES_DIR/nuget.config.template" "nuget.config"
+echo "✓ Created nuget.config with local package source"
 process_template "$TEMPLATES_DIR/Directory.Build.props.template" "Directory.Build.props"
-ok "Created nuget.config and shared Directory.Build.props"
+echo "✓ Created Directory.Build.props with shared download config"
 
 dotnet new web -n App1 -o App1 > /dev/null
-dotnet new web -n App2 -o App2 > /dev/null
 process_template "$TEMPLATES_DIR/App.csproj.template" "App1/App1.csproj"
-process_template "$TEMPLATES_DIR/App.csproj.template" "App2/App2.csproj"
 create_app_sources "App1" "app-one"
+echo "✓ Created App1"
+
+dotnet new web -n App2 -o App2 > /dev/null
+process_template "$TEMPLATES_DIR/App.csproj.template" "App2/App2.csproj"
 create_app_sources "App2" "app-two"
-ok "Created App1 and App2 Sass projects"
+echo "✓ Created App2"
 
 dotnet new sln -n MonorepoTest > /dev/null
 dotnet sln add App1/App1.csproj App2/App2.csproj > /dev/null
-ok "Created solution with two projects"
+echo "✓ Created solution with App1 and App2"
 
 section "Restoring And Building"
 dotnet restore --configfile nuget.config
+echo "✓ Packages restored"
 dotnet build --no-restore --verbosity minimal
-ok "Solution build completed"
+echo "✓ Solution build completed"
 
-FAILED=0
 section "Verifying Sass Output"
 for app in App1 App2; do
     if [ ! -f "$app/wwwroot/css/site.css" ]; then
@@ -131,12 +128,10 @@ if [ -z "${CI:-}" ]; then
     rm -rf "$TEST_DIR"
 fi
 
-if [ "$FAILED" -eq 0 ]; then
-    section "Result"
-    ok "E2E monorepo download test completed successfully - shared SassRuntimeDirectory worked"
-    exit 0
-fi
-
 section "Result"
-fail "E2E monorepo download test failed"
-exit 1
+if [ "$FAILED" -ne 0 ]; then
+    echo "✗ E2E monorepo download test failed"
+    exit 1
+fi
+echo "✓ E2E monorepo download test completed successfully - shared SassRuntimeDirectory worked"
+
