@@ -131,8 +131,9 @@ The scripts escape Windows backslashes before running `sed`, so paths like `D:\a
 6. Counts `Executing:` and requires exactly one invocation.
 7. Packs with `--no-build --configuration Debug`.
 8. Opens the `.nupkg` and verifies generated CSS appears under `staticwebassets/css/site.css`.
+9. Runs `dotnet clean` and verifies the outer-build CSS is removed.
 
-**Regression it catches**: if `RunSassBeforeStaticWebAssets` stops running in the outer build, runs once per TFM, or stops feeding static web assets, this test should fail.
+**Regression it catches**: if `RunSassBeforeStaticWebAssets` stops running in the outer build, runs once per TFM, stops feeding static web assets, or hooks clean only in inner builds, this test should fail.
 
 ### incremental/verify.sh
 
@@ -199,7 +200,7 @@ This scenario intentionally does not install a `Scarlet.Sass.Runtime.*` package.
 1. Creates a local tool manifest.
 2. Creates `nuget.config` that points to the local package source.
 3. Uses a private `NUGET_PACKAGES` directory so the test can see exactly what was restored.
-4. Uses an empty `SCARLET_SASS_CACHE_DIR` that should never be created.
+4. Uses an empty `SCARLET_SASS_CACHE` that should never be created.
 5. Installs `Scarlet.Sass.Cli`.
 6. Verifies the RID-specific CLI package directory exists.
 7. Verifies the package contains an embedded `sass` or `sass.bat` launcher.

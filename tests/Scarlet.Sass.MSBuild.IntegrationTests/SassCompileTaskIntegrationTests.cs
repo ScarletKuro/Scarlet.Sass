@@ -91,6 +91,49 @@ public class SassCompileTaskIntegrationTests
     }
 
     [Theory]
+    [InlineData("false", "--no-source-map --source-map", true)]
+    [InlineData("true", "--source-map --no-source-map", false)]
+    public void CompileTask_SourceMapAdditionalArgument_ShouldControlTheActualOutputAndManifest(
+        string sourceMap,
+        string additionalArguments,
+        bool expectsSourceMap)
+    {
+        using var workspace = TempWorkspace.Create("additional-source-map");
+        workspace.WriteFile("Sass/site.scss", ".site { color: red; }");
+
+        var item = new TaskItem("Sass/site.scss");
+        item.SetMetadata("OutputPath", "wwwroot/css/site.css");
+
+        var task = new SassCompileTask
+        {
+            BuildEngine = new MockBuildEngine(_output),
+            Compilations = [item],
+            ProjectDirectory = workspace.RootDirectory,
+            Configuration = "Release",
+            OutputStyle = "Compressed",
+            SourceMap = sourceMap,
+            EmbedSources = "false",
+            QuietDeps = "false",
+            AdditionalArguments = additionalArguments,
+            RuntimeDirectory = Path.Combine(RepositoryRoot.Path, "src", "Scarlet.Sass.MSBuild", "bin", "runtimes")
+        };
+
+        Assert.True(task.Execute());
+
+        var cssPath = workspace.PathTo("wwwroot", "css", "site.css");
+        var sourceMapPath = cssPath + ".map";
+        Assert.Equal(expectsSourceMap, File.Exists(sourceMapPath));
+        Assert.Equal(
+            expectsSourceMap,
+            task.GeneratedFiles.Any(file => string.Equals(file.ItemSpec, sourceMapPath, StringComparison.OrdinalIgnoreCase)));
+
+        var manifest = File.ReadAllLines(workspace.PathTo("obj", "Scarlet.Sass", "Sass.generated.txt"));
+        Assert.Equal(
+            expectsSourceMap,
+            manifest.Contains(sourceMapPath, StringComparer.OrdinalIgnoreCase));
+    }
+
+    [Theory]
     [InlineData(RuntimeSelection.VersionDownload)]
     [InlineData(RuntimeSelection.RuntimePackItem)]
     public void CompileTask_WithChangedRuntimeSelection_ShouldRegenerate(RuntimeSelection changed)

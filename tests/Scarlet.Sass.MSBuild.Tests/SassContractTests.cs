@@ -194,8 +194,20 @@ public class SassContractTests
         Assert.Contains("File=\"$(_SassStampDirectory)/Sass.generated.txt\"", targets);
         Assert.Contains("Files=\"$(_SassStampDirectory)/Sass.generated.txt;$(_SassStampDirectory)/Sass.settings.stamp\"", targets);
         Assert.Contains("Condition=\"'@(_SassFilesToClean)' != ''\"", targets);
-        Assert.DoesNotContain("<Target Name=\"SassClean\" BeforeTargets=\"CoreClean\" DependsOnTargets=\"_SassResolveStampDirectory\" Condition=", targets);
         Assert.DoesNotContain("$(_SassStampDirectory)\\", targets);
+    }
+
+    [Theory]
+    [InlineData("build/Scarlet.Sass.MSBuild.targets")]
+    [InlineData("buildMultiTargeting/Scarlet.Sass.MSBuild.targets")]
+    [InlineData("Scarlet.Sass.MSBuild.targets")]
+    public void Targets_ShouldCleanGeneratedFilesInSingleAndMultiTargetedProjects(string targetsRelativePath)
+    {
+        var cleanTarget = Assert.Single(
+            LoadProject(targetsRelativePath).Descendants("Target"),
+            static target => string.Equals(target.Attribute("Name")?.Value, "SassClean", StringComparison.Ordinal));
+
+        Assert.Equal("CoreClean;Clean", cleanTarget.Attribute("BeforeTargets")?.Value);
     }
 
     [Fact]

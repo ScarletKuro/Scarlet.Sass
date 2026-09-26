@@ -168,6 +168,15 @@ else
     echo "✓ Generated CSS was packed under staticwebassets/"
 fi
 
+section "Verifying Clean"
+dotnet clean --configuration Debug > /dev/null
+if [ -f "wwwroot/css/site.css" ]; then
+    echo "✗ dotnet clean left generated CSS behind"
+    FAILED=1
+else
+    echo "✓ dotnet clean removed generated CSS from the multi-TFM project"
+fi
+
 if [ -z "${CI:-}" ]; then
     cd /
     rm -rf "$TEST_DIR"

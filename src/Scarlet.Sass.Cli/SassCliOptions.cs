@@ -20,7 +20,7 @@ internal sealed class SassCliOptions
     public const string VersionVariable = "SCARLET_SASS_VERSION";
 
     /// <summary>Name of the variable overriding the cache root.</summary>
-    public const string CacheVariable = "SCARLET_SASS_CACHE_DIR";
+    public const string CacheVariable = "SCARLET_SASS_CACHE";
 
     /// <summary>Name of the variable that suppresses use of the embedded runtime.</summary>
     public const string NoEmbeddedVariable = "SCARLET_SASS_NO_EMBEDDED";

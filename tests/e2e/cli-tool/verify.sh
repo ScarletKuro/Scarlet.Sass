@@ -52,7 +52,7 @@ cd "$TEST_DIR"
 # Private caches keep the assertion honest: if the tool needs anything outside the local feed or downloads
 # Dart Sass, the script can see it.
 export NUGET_PACKAGES="$TEST_DIR/nuget-packages"
-export SCARLET_SASS_CACHE_DIR="$TEST_DIR/sass-cache"
+export SCARLET_SASS_CACHE="$TEST_DIR/sass-cache"
 
 DOTNET_RID="$(detect_dotnet_rid)"
 section "E2E Test: Scarlet.Sass.Cli"
@@ -151,10 +151,10 @@ fi
 section "Verifying No Download Was Needed"
 # These three checks together prove the embedded path: a RID package was restored, --scarlet-info says the
 # source is embedded, and the only configured download cache was never created.
-if [ -d "$SCARLET_SASS_CACHE_DIR" ]; then
+if [ -d "$SCARLET_SASS_CACHE" ]; then
     echo "✗ The embedded-runtime path unexpectedly created a download cache"
     FAILED=1
-    find "$SCARLET_SASS_CACHE_DIR" -type f | head -5
+    find "$SCARLET_SASS_CACHE" -type f | head -5
 else
     echo "✓ The download cache was never created"
 fi

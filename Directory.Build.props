@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <!-- Sass runtime version used across all runtime packages -->
-    <SassVersion>1.104.1</SassVersion>
+    <SassVersion>1.105.0</SassVersion>
 
     <!-- Revision of Scarlet.Sass.Cli within a single SassVersion. The CLI package version is
          $(SassVersion).$(SassCliRevision), and NuGet normalises a trailing zero away, so revision 0

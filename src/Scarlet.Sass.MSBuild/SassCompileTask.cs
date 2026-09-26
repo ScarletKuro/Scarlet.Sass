@@ -199,6 +199,7 @@ public sealed class SassCompileTask : Task
         }
 
         sourceMap = ParseAutoBoolean(sourceMapValue, sourceMap, "SassSourceMap");
+        sourceMap = ApplySourceMapOverrides(sourceMap, additionalArguments);
         embedSources = ParseAutoBoolean(embedSourcesValue, embedSources, "SassEmbedSources");
         var quietDeps = ParseBoolean(quietDepsValue, "SassQuietDeps");
 
@@ -665,6 +666,67 @@ public sealed class SassCompileTask : Task
         }
 
         return value!.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(static item => item.Trim()).Where(static item => item.Length > 0).ToArray();
+    }
+
+    /// <summary>
+    /// Applies source-map flags from the raw escape hatch in command-line order. Dart Sass uses the last
+    /// repeated flag, so the task must use that same effective value when it builds the output manifest.
+    /// </summary>
+    private static bool ApplySourceMapOverrides(bool sourceMap, string additionalArguments)
+    {
+        foreach (var argument in SplitArguments(additionalArguments))
+        {
+            if (string.Equals(argument, "--source-map", StringComparison.Ordinal))
+            {
+                sourceMap = true;
+            }
+            else if (string.Equals(argument, "--no-source-map", StringComparison.Ordinal))
+            {
+                sourceMap = false;
+            }
+        }
+
+        return sourceMap;
+    }
+
+    private static IReadOnlyList<string> SplitArguments(string value)
+    {
+        var arguments = new List<string>();
+        var current = new StringBuilder();
+        var quoted = false;
+        var started = false;
+
+        foreach (var character in value)
+        {
+            if (character == '"')
+            {
+                quoted = !quoted;
+                started = true;
+                continue;
+            }
+
+            if (!quoted && char.IsWhiteSpace(character))
+            {
+                if (started)
+                {
+                    arguments.Add(current.ToString());
+                    current.Clear();
+                    started = false;
+                }
+
+                continue;
+            }
+
+            current.Append(character);
+            started = true;
+        }
+
+        if (started)
+        {
+            arguments.Add(current.ToString());
+        }
+
+        return arguments;
     }
 
     private static string? EmptyToNull(string? value)

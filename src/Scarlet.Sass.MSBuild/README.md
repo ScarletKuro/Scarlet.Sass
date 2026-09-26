@@ -170,7 +170,7 @@ Sass partials whose file name starts with `_` are not entry points. They can sti
 | `SassAdditionalArguments` | empty | Extra raw Dart Sass arguments. |
 | `SassRuntimeDirectory` | empty | Explicit runtime directory containing `<rid>/native/dart-sass/<sass launcher>`. |
 | `SassRuntimeDownload` | `false` | Download the runtime instead of using runtime packages. |
-| `SassVersionDownload` | empty | Version to download. Empty means the pinned package version. |
+| `SassVersionDownload` | empty | Version to download. Empty resolves the latest GitHub release. |
 | `SassDownloadMutexTimeoutSeconds` | `300` | Timeout for concurrent download coordination. |
 | `SassStampDirectory` | `$(IntermediateOutputPath)\Scarlet.Sass` | Settings stamp and generated-file manifest directory. |
 | `SassTimeoutMilliseconds` | `0` | Maximum time to wait for each Dart Sass invocation before killing it. `0` waits indefinitely. |
@@ -196,6 +196,9 @@ Sass partials whose file name starts with `_` are not entry points. They can sti
 
 `OutputPath` is required. If the item points at a directory, `OutputPath` must be a directory. If the item points at a file, `OutputPath` can be a `.css` file or a path whose extension will be changed to `.css`.
 
+`AdditionalArguments` is applied last. If it contains repeated `--source-map` or `--no-source-map` flags,
+the last one controls both Dart Sass and Scarlet's generated-file manifest.
+
 ## Task Parameters
 
 `RunSassBeforeStaticWebAssets` sets these from the properties above. Call `SassCompileTask` directly only if you need a compile outside that target.
@@ -218,7 +221,7 @@ Sass partials whose file name starts with `_` are not entry points. They can sti
 | `RuntimeDirectory` | No | Explicit runtime directory. Overrides `RuntimePacks`. Required when `SassRuntimeDownload` is true | null |
 | `RuntimePacks` | No | The runtimes available to the build, normally `@(SassRuntimePack)`. See [How the Runtime Is Discovered](#how-the-runtime-is-discovered) | empty |
 | `SassRuntimeDownload` | No | Download Dart Sass instead of using runtime packs | `false` |
-| `SassVersionDownload` | No | Version to download. Empty means the pinned version | empty |
+| `SassVersionDownload` | No | Version to download. Empty resolves the latest GitHub release | empty |
 | `DownloadMutexTimeoutSeconds` | No | Seconds to wait when another process holds the download mutex | `300` |
 | `TimeoutMilliseconds` | No | Maximum time per Dart Sass invocation before it is killed. `0` waits indefinitely | `0` |
 
