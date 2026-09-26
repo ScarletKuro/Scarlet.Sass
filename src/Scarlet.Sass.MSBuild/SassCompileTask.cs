@@ -10,6 +10,7 @@ using System.Threading;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Scarlet.Sass.Core;
+using Scarlet.Sass.Core.Extensions;
 using Scarlet.Sass.Core.Providers;
 
 namespace Scarlet.Sass.MSBuild;
@@ -76,7 +77,7 @@ public sealed class SassCompileTask : Task
                 EmptyToNull(PkgImporter),
                 SplitList(SilenceDeprecations),
                 SplitList(FatalDeprecations),
-                AdditionalArguments ?? string.Empty);
+                AdditionalArguments);
             if (Log.HasLoggedErrors)
             {
                 return false;
@@ -108,13 +109,13 @@ public sealed class SassCompileTask : Task
             {
                 foreach (var output in expectedFiles)
                 {
-                    DeleteIfExists(fileSystem, output);
+                    fileSystem.File.TryDeleteFile(output);
                 }
             }
 
             foreach (var stale in removedFiles)
             {
-                DeleteIfExists(fileSystem, stale);
+                fileSystem.File.TryDeleteFile(stale);
             }
 
             Log.LogMessage(MessageImportance.High, $"Using Sass at: {sassCommand.DisplayPath}");
@@ -199,12 +200,15 @@ public sealed class SassCompileTask : Task
         }
 
         sourceMap = ParseAutoBoolean(sourceMapValue, sourceMap, "SassSourceMap");
+        var embedSourceMap = false;
+        ApplySourceMapOverrides(ref sourceMap, ref embedSourceMap, additionalArguments);
         embedSources = ParseAutoBoolean(embedSourcesValue, embedSources, "SassEmbedSources");
         var quietDeps = ParseBoolean(quietDepsValue, "SassQuietDeps");
 
         return new SassSettings(
             outputStyle,
             sourceMap,
+            embedSourceMap,
             embedSources,
             quietDeps,
             loadPaths,
@@ -249,7 +253,7 @@ public sealed class SassCompileTask : Task
                     continue;
                 }
 
-                var expected = DiscoverDirectoryOutputs(fileSystem, input, output, itemSettings.SourceMap);
+                var expected = DiscoverDirectoryOutputs(fileSystem, input, output, itemSettings.HasExternalSourceMap);
                 entries.Add(new SassEntry(input, output, expected, itemSettings));
             }
             else if (fileSystem.File.Exists(input))
@@ -262,7 +266,7 @@ public sealed class SassCompileTask : Task
                 var cssOutput = output.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
                     ? output
                     : Path.ChangeExtension(output, ".css");
-                var expected = itemSettings.SourceMap
+                var expected = itemSettings.HasExternalSourceMap
                     ? new[] { cssOutput, cssOutput + ".map" }
                     : new[] { cssOutput };
                 entries.Add(new SassEntry(input, cssOutput, expected, itemSettings));
@@ -341,7 +345,7 @@ public sealed class SassCompileTask : Task
             message => Log.LogMessage(MessageImportance.Normal, message));
     }
 
-    private string BuildArguments(SassSettings globalSettings, IReadOnlyList<SassEntry> entries)
+    private static string BuildArguments(SassSettings globalSettings, IReadOnlyList<SassEntry> entries)
     {
         var args = new List<string>
         {
@@ -581,14 +585,6 @@ public sealed class SassCompileTask : Task
             : Array.Empty<string>();
     }
 
-    private static void DeleteIfExists(IFileSystem fileSystem, string path)
-    {
-        if (fileSystem.File.Exists(path))
-        {
-            fileSystem.File.Delete(path);
-        }
-    }
-
     private bool ParseAutoBoolean(string value, bool automatic, string name)
     {
         if (string.Equals(value, "Auto", StringComparison.OrdinalIgnoreCase))
@@ -667,6 +663,74 @@ public sealed class SassCompileTask : Task
         return value!.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(static item => item.Trim()).Where(static item => item.Length > 0).ToArray();
     }
 
+    /// <summary>
+    /// Applies source-map flags from the raw escape hatch in command-line order. Dart Sass uses the last
+    /// repeated value for each flag pair, so the task must use those same effective values when it builds
+    /// the output manifest. An embedded source map is part of the CSS rather than a separate output file.
+    /// </summary>
+    private static void ApplySourceMapOverrides(ref bool sourceMap, ref bool embedSourceMap, string additionalArguments)
+    {
+        foreach (var argument in SplitArguments(additionalArguments))
+        {
+            if (string.Equals(argument, "--source-map", StringComparison.Ordinal))
+            {
+                sourceMap = true;
+            }
+            else if (string.Equals(argument, "--no-source-map", StringComparison.Ordinal))
+            {
+                sourceMap = false;
+            }
+            else if (string.Equals(argument, "--embed-source-map", StringComparison.Ordinal))
+            {
+                embedSourceMap = true;
+            }
+            else if (string.Equals(argument, "--no-embed-source-map", StringComparison.Ordinal))
+            {
+                embedSourceMap = false;
+            }
+        }
+    }
+
+    private static IReadOnlyList<string> SplitArguments(string value)
+    {
+        var arguments = new List<string>();
+        var current = new StringBuilder();
+        var quoted = false;
+        var started = false;
+
+        foreach (var character in value)
+        {
+            if (character == '"')
+            {
+                quoted = !quoted;
+                started = true;
+                continue;
+            }
+
+            if (!quoted && char.IsWhiteSpace(character))
+            {
+                if (started)
+                {
+                    arguments.Add(current.ToString());
+                    current.Clear();
+                    started = false;
+                }
+
+                continue;
+            }
+
+            current.Append(character);
+            started = true;
+        }
+
+        if (started)
+        {
+            arguments.Add(current.ToString());
+        }
+
+        return arguments;
+    }
+
     private static string? EmptyToNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value!.Trim();
@@ -679,6 +743,7 @@ public sealed class SassCompileTask : Task
         public SassSettings(
             string outputStyle,
             bool sourceMap,
+            bool embedSourceMap,
             bool embedSources,
             bool quietDeps,
             IReadOnlyList<string> loadPaths,
@@ -689,6 +754,7 @@ public sealed class SassCompileTask : Task
         {
             OutputStyle = outputStyle;
             SourceMap = sourceMap;
+            EmbedSourceMap = embedSourceMap;
             EmbedSources = embedSources;
             QuietDeps = quietDeps;
             LoadPaths = loadPaths;
@@ -700,6 +766,8 @@ public sealed class SassCompileTask : Task
 
         public string OutputStyle { get; }
         public bool SourceMap { get; }
+        public bool EmbedSourceMap { get; }
+        public bool HasExternalSourceMap => SourceMap && !EmbedSourceMap;
         public bool EmbedSources { get; }
         public bool QuietDeps { get; }
         public IReadOnlyList<string> LoadPaths { get; }
@@ -714,6 +782,7 @@ public sealed class SassCompileTask : Task
                 "|",
                 OutputStyle,
                 SourceMap.ToString(),
+                EmbedSourceMap.ToString(),
                 EmbedSources.ToString(),
                 QuietDeps.ToString(),
                 string.Join(";", LoadPaths),

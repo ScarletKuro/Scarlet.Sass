@@ -65,8 +65,15 @@
     </ItemGroup>
   </Target>
 
+  <!-- Hooked to both targets deliberately. In a single-target-framework project CoreClean runs with
+       $(IntermediateOutputPath) set to obj/<config>/<tfm>/, which is where the build wrote the manifest. In
+       a multi-targeted one CoreClean only runs in the inner builds, whose obj/<config>/<tfm>/ never held a
+       manifest - the build ran once in the outer build and wrote to obj/<config>/. Clean does run in the
+       outer build, so hooking it as well is what makes `dotnet clean` remove generated CSS from a
+       multi-targeted project. Whichever hook resolves the other directory finds no manifest and deletes
+       nothing, so running twice is harmless. -->
   <Target Name="SassClean"
-          BeforeTargets="CoreClean"
+          BeforeTargets="CoreClean;Clean"
           DependsOnTargets="_SassResolveStampDirectory">
     <ReadLinesFromFile File="$(_SassStampDirectory)/Sass.generated.txt"
                        Condition="'$(_SassStampDirectory)' != '' AND Exists('$(_SassStampDirectory)/Sass.generated.txt')">

@@ -128,7 +128,7 @@ internal sealed class SassCliResolver
 
         // Normalised only so the reported path is stable. The cache branch above goes through
         // GetLauncherPath, which canonicalises; the downloader does not. Every default cache root is
-        // absolute, so the two agree anyway - they diverge only when SCARLET_SASS_CACHE_DIR is set to a
+        // absolute, so the two agree anyway - they diverge only when SCARLET_SASS_CACHE is set to a
         // relative path, and then --scarlet-info would report a relative path on the run that downloaded
         // and an absolute one on every run after. Nothing breaks either way: a relative path still
         // launches, because the working directory is inherited and never changed.

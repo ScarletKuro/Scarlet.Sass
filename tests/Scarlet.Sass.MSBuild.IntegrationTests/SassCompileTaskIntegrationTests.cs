@@ -91,6 +91,57 @@ public class SassCompileTaskIntegrationTests
     }
 
     [Theory]
+    [InlineData("false", "--no-source-map --source-map", true, false)]
+    [InlineData("true", "--source-map --no-source-map", false, false)]
+    [InlineData("false", "\"--source-map\"", true, false)]
+    [InlineData("true", "--embed-source-map", false, true)]
+    [InlineData("true", "--embed-source-map --no-embed-source-map", true, false)]
+    [InlineData("true", "\"--embed-source-map\"", false, true)]
+    public void CompileTask_SourceMapAdditionalArgument_ShouldControlTheActualOutputAndManifest(
+        string sourceMap,
+        string additionalArguments,
+        bool expectsExternalSourceMap,
+        bool expectsEmbeddedSourceMap)
+    {
+        using var workspace = TempWorkspace.Create("additional-source-map");
+        workspace.WriteFile("Sass/site.scss", ".site { color: red; }");
+
+        var item = new TaskItem("Sass/site.scss");
+        item.SetMetadata("OutputPath", "wwwroot/css/site.css");
+
+        var task = new SassCompileTask
+        {
+            BuildEngine = new MockBuildEngine(_output),
+            Compilations = [item],
+            ProjectDirectory = workspace.RootDirectory,
+            Configuration = "Release",
+            OutputStyle = "Compressed",
+            SourceMap = sourceMap,
+            EmbedSources = "false",
+            QuietDeps = "false",
+            AdditionalArguments = additionalArguments,
+            RuntimeDirectory = Path.Combine(RepositoryRoot.Path, "src", "Scarlet.Sass.MSBuild", "bin", "runtimes")
+        };
+
+        Assert.True(task.Execute());
+
+        var cssPath = workspace.PathTo("wwwroot", "css", "site.css");
+        var sourceMapPath = cssPath + ".map";
+        Assert.Equal(expectsExternalSourceMap, File.Exists(sourceMapPath));
+        Assert.Equal(
+            expectsEmbeddedSourceMap,
+            File.ReadAllText(cssPath).Contains("sourceMappingURL=data:", StringComparison.Ordinal));
+        Assert.Equal(
+            expectsExternalSourceMap,
+            task.GeneratedFiles.Any(file => string.Equals(file.ItemSpec, sourceMapPath, StringComparison.OrdinalIgnoreCase)));
+
+        var manifest = File.ReadAllLines(workspace.PathTo("obj", "Scarlet.Sass", "Sass.generated.txt"));
+        Assert.Equal(
+            expectsExternalSourceMap,
+            manifest.Contains(sourceMapPath, StringComparer.OrdinalIgnoreCase));
+    }
+
+    [Theory]
     [InlineData(RuntimeSelection.VersionDownload)]
     [InlineData(RuntimeSelection.RuntimePackItem)]
     public void CompileTask_WithChangedRuntimeSelection_ShouldRegenerate(RuntimeSelection changed)
