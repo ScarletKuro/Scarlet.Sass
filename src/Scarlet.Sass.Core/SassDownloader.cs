@@ -273,7 +273,7 @@ public sealed class SassDownloader
         }
     }
 
-    private string ResolveArchiveDestination(string destinationDirectory, string entryName)
+    private static string ResolveArchiveDestination(string destinationDirectory, string entryName)
     {
         var normalizedName = entryName.Replace('/', Path.DirectorySeparatorChar);
         var destinationPath = Path.GetFullPath(Path.Combine(destinationDirectory, normalizedName));

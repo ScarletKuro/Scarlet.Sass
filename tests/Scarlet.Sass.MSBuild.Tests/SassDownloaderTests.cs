@@ -147,11 +147,10 @@ public class SassDownloaderTests
             new FakeLatestVersionResolver(null),
             mockFileSystem,
             new FakeZipArchiveProvider(mockFileSystem),
-            new FakeTarArchiveProvider(new[]
-            {
+            new FakeTarArchiveProvider([
                 FakeTarEntry.Directory("dart-sass/src/"),
                 FakeTarEntry.File("dart-sass/sass", "fake Sass launcher")
-            }),
+            ]),
             NoOpChmodProvider.Instance,
             platform,
             NoOpSassLogger.Instance);

@@ -46,11 +46,10 @@ public class SassContractTests
         var paths = SassRuntimeResolver.GetExecutablePermissionPaths(sassPath, Platform.LinuxX64);
 
         Assert.Equal(
-            new[]
-            {
+            [
                 sassPath,
                 Path.Combine("runtimes", "linux-x64", "native", "dart-sass", "src", "dart")
-            },
+            ],
             paths);
     }
 

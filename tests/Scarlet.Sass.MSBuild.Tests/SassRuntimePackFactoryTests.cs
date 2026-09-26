@@ -74,7 +74,7 @@ public class SassRuntimePackFactoryTests
     public void FromTaskItems_WithoutPriority_ShouldDefaultToZero()
     {
         // Act
-        var pack = Assert.Single(SassRuntimePackFactory.FromTaskItems(new ITaskItem[] { Pack("pack") }));
+        var pack = Assert.Single(SassRuntimePackFactory.FromTaskItems([Pack("pack")]));
 
         // Assert
         Assert.Equal(0, pack.Priority);
@@ -199,7 +199,7 @@ public class SassRuntimePackFactoryTests
         };
 
         // Act
-        var pack = Assert.Single(SassRuntimePackFactory.FromTaskItems(new ITaskItem[] { new FakeTaskItem("Null.Pack", metadata) }, reported.Add));
+        var pack = Assert.Single(SassRuntimePackFactory.FromTaskItems([new FakeTaskItem("Null.Pack", metadata)], reported.Add));
 
         // Assert
         Assert.Null(pack.Variant);

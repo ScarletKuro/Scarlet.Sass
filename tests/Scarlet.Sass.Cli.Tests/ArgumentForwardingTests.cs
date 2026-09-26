@@ -13,23 +13,23 @@ namespace Scarlet.Sass.Cli.Tests;
 /// </remarks>
 public class ArgumentForwardingTests
 {
-    public static TheoryData<string[]> Arguments => new()
-    {
-        Array.Empty<string>(),
-        new[] { "--version" },
-        new[] { "--help" },
-        new[] { "input.scss", "output.css" },
-        new[] { "--watch", "assets/styles:wwwroot/css" },
-        new[] { "--style=compressed" },
-        new[] { "--load-path", "node_modules", "site.scss", "site.css" },
-        new[] { "--" },
-        new[] { "--define", "X=\"y\"" },
-        new[] { "a b" },
-        new[] { string.Empty },
-        new[] { "trailing\\" },
-        new[] { "日本語" },
-        new[] { "--flag=va lue", "second", string.Empty, "-" }
-    };
+    public static TheoryData<string[]> Arguments =>
+    [
+        [],
+        ["--version"],
+        ["--help"],
+        ["input.scss", "output.css"],
+        ["--watch", "assets/styles:wwwroot/css"],
+        ["--style=compressed"],
+        ["--load-path", "node_modules", "site.scss", "site.css"],
+        ["--"],
+        ["--define", "X=\"y\""],
+        ["a b"],
+        [string.Empty],
+        ["trailing\\"],
+        ["日本語"],
+        ["--flag=va lue", "second", string.Empty, "-"]
+    ];
 
     [Theory]
     [MemberData(nameof(Arguments))]
@@ -55,7 +55,7 @@ public class ArgumentForwardingTests
             var application = CreateApplication(new RecordingProcessLauncher(exitCode), out _);
 
             // Act
-            var result = application.Run(new[] { "input.scss", "output.css" });
+            var result = application.Run(["input.scss", "output.css"]);
 
             // Assert
             Assert.Equal(exitCode, result);
@@ -70,7 +70,7 @@ public class ArgumentForwardingTests
         var application = CreateApplication(launcher, out var embeddedPath);
 
         // Act
-        application.Run(new[] { "--version" });
+        application.Run(["--version"]);
 
         // Assert
         Assert.NotNull(launcher.Received);
@@ -106,7 +106,7 @@ public class ArgumentForwardingTests
             stderr);
 
         // Act
-        var result = application.Run(new[] { "--version" });
+        var result = application.Run(["--version"]);
 
         // Assert
         Assert.Equal(127, result);

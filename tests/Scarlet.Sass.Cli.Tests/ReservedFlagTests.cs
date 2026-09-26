@@ -17,7 +17,7 @@ public class ReservedFlagTests
         var application = Create(launcher, stdout);
 
         // Act
-        var result = application.Run(new[] { SassCliApplication.InfoFlag });
+        var result = application.Run([SassCliApplication.InfoFlag]);
 
         // Assert
         Assert.Equal(0, result);
@@ -25,12 +25,12 @@ public class ReservedFlagTests
         Assert.Contains("Pinned Sass version", stdout.ToString());
     }
 
-    public static TheoryData<string[]> InfoFlagNotFirst => new()
-    {
-        new[] { "input.scss", "--scarlet-info" },
-        new[] { "--version", "--scarlet-info" },
-        new[] { "input.scss", "output.css", "--scarlet-info" }
-    };
+    public static TheoryData<string[]> InfoFlagNotFirst =>
+    [
+        ["input.scss", "--scarlet-info"],
+        ["--version", "--scarlet-info"],
+        ["input.scss", "output.css", "--scarlet-info"]
+    ];
 
     [Theory]
     [MemberData(nameof(InfoFlagNotFirst))]
@@ -78,7 +78,7 @@ public class ReservedFlagTests
         var application = Create(new RecordingProcessLauncher(), stdout);
 
         // Act
-        var result = application.Run(new[] { SassCliApplication.InfoFlag, "--json" });
+        var result = application.Run([SassCliApplication.InfoFlag, "--json"]);
 
         // Assert
         Assert.Equal(0, result);
@@ -95,7 +95,7 @@ public class ReservedFlagTests
         var application = Create(new RecordingProcessLauncher(), new StringWriter(), stderr: stderr);
 
         // Act
-        var result = application.Run(new[] { SassCliApplication.InfoFlag, "--nope" });
+        var result = application.Run([SassCliApplication.InfoFlag, "--nope"]);
 
         // Assert
         Assert.Equal(64, result);
@@ -128,7 +128,7 @@ public class ReservedFlagTests
             new StringWriter());
 
         // Act
-        var result = application.Run(new[] { SassCliApplication.InfoFlag });
+        var result = application.Run([SassCliApplication.InfoFlag]);
 
         // Assert - it reports the URL it *would* use rather than fetching it
         Assert.Equal(0, result);

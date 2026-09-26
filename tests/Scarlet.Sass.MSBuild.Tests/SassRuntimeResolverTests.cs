@@ -139,7 +139,7 @@ public class SassRuntimeResolverTests
         // Assert
         Assert.Equal(launcher, result.DisplayPath);
         Assert.Equal(dart, result.FileName);
-        Assert.Equal(new[] { snapshot }, result.Arguments);
+        Assert.Equal([snapshot], result.Arguments);
     }
 
     [Theory]
@@ -198,7 +198,7 @@ public class SassRuntimeResolverTests
     {
         var result = SassRuntimeResolver.GetExecutablePermissionPaths("sass", Platform.LinuxX64);
 
-        Assert.Equal(new[] { "sass" }, result);
+        Assert.Equal(["sass"], result);
     }
 
     [Fact]
@@ -346,11 +346,11 @@ public class SassRuntimeResolverTests
         var other = new SassRuntimePack("other", "osx-arm64", "/o/runtimes", priority: 99);
 
         // Act
-        var forward = SassRuntimeResolver.SelectPacks(new[] { low, alsoLow, high, other }, Platform.LinuxX64);
-        var reversed = SassRuntimeResolver.SelectPacks(new[] { other, high, alsoLow, low }, Platform.LinuxX64);
+        var forward = SassRuntimeResolver.SelectPacks([low, alsoLow, high, other], Platform.LinuxX64);
+        var reversed = SassRuntimeResolver.SelectPacks([other, high, alsoLow, low], Platform.LinuxX64);
 
         // Assert
-        Assert.Equal(new[] { "m-pack", "a-pack", "z-pack" }, forward.Select(pack => pack.Id));
+        Assert.Equal(["m-pack", "a-pack", "z-pack"], forward.Select(pack => pack.Id));
         Assert.Equal(forward.Select(pack => pack.Id), reversed.Select(pack => pack.Id));
     }
 
@@ -362,11 +362,11 @@ public class SassRuntimeResolverTests
         var first = new SassRuntimePack("same-id", "linux-x64", "/a/runtimes");
 
         // Act
-        var forward = SassRuntimeResolver.SelectPacks(new[] { second, first }, Platform.LinuxX64);
-        var reversed = SassRuntimeResolver.SelectPacks(new[] { first, second }, Platform.LinuxX64);
+        var forward = SassRuntimeResolver.SelectPacks([second, first], Platform.LinuxX64);
+        var reversed = SassRuntimeResolver.SelectPacks([first, second], Platform.LinuxX64);
 
         // Assert
-        Assert.Equal(new[] { "/a/runtimes", "/b/runtimes" }, forward.Select(pack => pack.RuntimesPath));
+        Assert.Equal(["/a/runtimes", "/b/runtimes"], forward.Select(pack => pack.RuntimesPath));
         Assert.Equal(forward.Select(pack => pack.RuntimesPath), reversed.Select(pack => pack.RuntimesPath));
     }
 

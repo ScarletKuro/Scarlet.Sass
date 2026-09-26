@@ -7,7 +7,7 @@ public class SassCommandLineTests
     {
         var command = new SassLaunchCommand(
             @"C:\tools\dart-sass\src\dart.exe",
-            new[] { @"C:\tools\dart-sass\src\sass.snapshot" },
+            [@"C:\tools\dart-sass\src\sass.snapshot"],
             @"C:\tools\dart-sass\sass.bat");
 
         var result = SassCommandLine.BuildProcessArguments(command, @"--update ""input.scss:output.css""");
@@ -20,7 +20,7 @@ public class SassCommandLineTests
     {
         var command = new SassLaunchCommand(
             @"C:\tools\dart-sass\src\dart.exe",
-            new[] { @"C:\tools\dart-sass\src\sass.snapshot" },
+            [@"C:\tools\dart-sass\src\sass.snapshot"],
             @"C:\tools\dart-sass\sass.bat");
 
         var result = SassCommandLine.FormatProcessCommand(command, @"""C:\\tools\\dart-sass\\src\\sass.snapshot"" --version");
@@ -43,10 +43,10 @@ public class SassCommandLineTests
     {
         var command = new SassLaunchCommand(
             @"C:\tools\dart-sass\src\dart.exe",
-            new[] { @"C:\tools\dart-sass\src\sass.snapshot" },
+            [@"C:\tools\dart-sass\src\sass.snapshot"],
             @"C:\tools\dart-sass\sass.bat");
 
-        var result = SassCommandLine.FormatProcessCommand(command, new[] { "--version" });
+        var result = SassCommandLine.FormatProcessCommand(command, ["--version"]);
 
         Assert.Equal(@"""C:\\tools\\dart-sass\\src\\dart.exe"" ""C:\\tools\\dart-sass\\src\\sass.snapshot"" ""--version""", result);
     }

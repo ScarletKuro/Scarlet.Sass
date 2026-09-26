@@ -37,7 +37,7 @@ public class SassCliDownloadTests
         using var handler = new MockHttpMessageHandler();
 
         handler.When($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-windows-x64.zip")
-            .Respond("application/zip", new MemoryStream(new byte[] { 1, 2, 3 }));
+            .Respond("application/zip", new MemoryStream([1, 2, 3]));
 
         // Act
         var resolution = Resolve(fileSystem, handler, version: "1.4.2");
@@ -65,7 +65,7 @@ public class SassCliDownloadTests
         fileSystem.AddFile(cached, new MockFileData("partially extracted"));
 
         handler.Expect($"{GithubReleasesUrl}/download/1.4.2/dart-sass-1.4.2-windows-x64.zip")
-            .Respond("application/zip", new MemoryStream(new byte[] { 1, 2, 3 }));
+            .Respond("application/zip", new MemoryStream([1, 2, 3]));
 
         // Act
         var resolution = Resolve(fileSystem, handler, version: "1.4.2");
@@ -85,7 +85,7 @@ public class SassCliDownloadTests
         using var handler = new MockHttpMessageHandler();
 
         handler.When($"{GithubReleasesUrl}/download/1.3.6/dart-sass-1.3.6-windows-x64.zip")
-            .Respond("application/zip", new MemoryStream(new byte[] { 1, 2, 3 }));
+            .Respond("application/zip", new MemoryStream([1, 2, 3]));
 
         // Act
         var resolution = Resolve(fileSystem, handler, version: "1.3.6");
@@ -105,7 +105,7 @@ public class SassCliDownloadTests
 
         // Expect, not When: this asserts the URL shape rather than merely tolerating it
         handler.Expect($"{GithubReleasesUrl}/download/1.5.0/dart-sass-1.5.0-windows-x64.zip")
-            .Respond("application/zip", new MemoryStream(new byte[] { 1, 2, 3 }));
+            .Respond("application/zip", new MemoryStream([1, 2, 3]));
 
         // Act
         var resolution = Resolve(fileSystem, handler, version: SassCliOptions.LatestVersion, resolvedLatestVersion: "1.5.0");

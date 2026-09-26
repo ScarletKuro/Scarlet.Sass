@@ -65,7 +65,7 @@ public class SassBeforeStaticWebAssetsTests
 
         var endpoints = Assert.Single(
             Directory.GetFiles(workspace.PathTo("publish"), "*.staticwebassets.endpoints.json"));
-        var manifest = File.ReadAllText(endpoints);
+        var manifest = await File.ReadAllTextAsync(endpoints);
 
         // A fingerprinted route proves the file went through the static web assets pipeline rather than
         // being copied to the publish directory as plain content, which is what the README promises.
@@ -148,7 +148,7 @@ public class SassBeforeStaticWebAssetsTests
         var build = await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}");
         Assert.Equal(0, build.ExitCode);
 
-        var css = File.ReadAllText(workspace.PathTo("wwwroot", "css", "site.css"));
+        var css = await File.ReadAllTextAsync(workspace.PathTo("wwwroot", "css", "site.css"));
         var sourceMap = workspace.PathTo("wwwroot", "css", "site.css.map");
 
         if (string.Equals(DotnetCli.Configuration, "Debug", StringComparison.OrdinalIgnoreCase))
@@ -178,7 +178,7 @@ public class SassBeforeStaticWebAssetsTests
         var build = await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}");
         Assert.Equal(0, build.ExitCode);
 
-        var css = File.ReadAllText(workspace.PathTo("wwwroot", "css", "site.css"));
+        var css = await File.ReadAllTextAsync(workspace.PathTo("wwwroot", "css", "site.css"));
         Assert.DoesNotContain("\n", css.TrimEnd());
         Assert.False(
             File.Exists(workspace.PathTo("wwwroot", "css", "site.css.map")),
@@ -201,7 +201,7 @@ public class SassBeforeStaticWebAssetsTests
 
         var sourceMap = workspace.PathTo("wwwroot", "css", "site.css.map");
         Assert.True(File.Exists(sourceMap), "SassSourceMap=true should emit a source map.");
-        Assert.Contains("sourcesContent", File.ReadAllText(sourceMap), StringComparison.Ordinal);
+        Assert.Contains("sourcesContent", await File.ReadAllTextAsync(sourceMap), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public class SassBeforeStaticWebAssetsTests
         // The exit code carries most of the claim: without the load path reaching Dart Sass, @use "tokens"
         // cannot resolve and the build fails outright.
         Assert.Equal(0, build.ExitCode);
-        Assert.Contains("12.5px", File.ReadAllText(workspace.PathTo("wwwroot", "css", "site.css")), StringComparison.Ordinal);
+        Assert.Contains("12.5px", await File.ReadAllTextAsync(workspace.PathTo("wwwroot", "css", "site.css")), StringComparison.Ordinal);
     }
 
     [Fact]

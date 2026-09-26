@@ -18,7 +18,7 @@ public class SassRuntimePackTests
 
         // Assert - the two identical unresolvable paths still collapse
         Assert.Equal(2, result.Count);
-        Assert.Equal(new[] { "a", "c" }, result.Select(pack => pack.Id));
+        Assert.Equal(["a", "c"], result.Select(pack => pack.Id));
     }
 
     [Fact]

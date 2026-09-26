@@ -60,7 +60,7 @@ public class SassCliResolverTests
         Resolve(fileSystem, out var chmod);
 
         // Assert
-        Assert.Equal(new[] { embedded }, chmod.Paths);
+        Assert.Equal([embedded], chmod.Paths);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class SassCliResolverTests
         Resolve(fileSystem, out var chmod);
 
         // Assert
-        Assert.Equal(new[] { embedded, dartRuntime }, chmod.Paths);
+        Assert.Equal([embedded, dartRuntime], chmod.Paths);
     }
 
     [Fact]
