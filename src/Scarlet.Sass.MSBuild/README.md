@@ -6,9 +6,11 @@ Scarlet.Sass.MSBuild is intentionally explicit: it compiles only `@(SassBeforeSt
 
 ## Table of Contents
 
-- [Install](#install)
+- [Installation](#installation)
+- [Runtime Options](#runtime-options)
   - [Option 1: Runtime Download](#option-1-runtime-download)
-  - [Option 2: Conditional Package References](#option-2-conditional-package-references)
+  - [Option 2: Platform-Specific Runtime Packages](#option-2-platform-specific-runtime-packages)
+  - [Option 3: Conditional Package References](#option-3-conditional-package-references)
   - [How the Runtime Is Discovered](#how-the-runtime-is-discovered)
 - [Compile Before Static Web Assets](#compile-before-static-web-assets)
 - [Properties](#properties)
@@ -23,41 +25,101 @@ Scarlet.Sass.MSBuild is intentionally explicit: it compiles only `@(SassBeforeSt
 - [Links](#links)
 - [License](#license)
 
-## Install
+## Installation
+
+Install the main MSBuild task package:
 
 ```bash
 dotnet add package Scarlet.Sass.MSBuild
-dotnet add package Scarlet.Sass.Runtime.windows-x64
 ```
 
-Use the runtime package that matches the **build host**, not the project's target RID. Package names follow Dart Sass's own platform naming, which does not match .NET RIDs:
+Or via Package Manager:
 
-| Build host RID | Runtime package |
-| --- | --- |
-| `win-x64` | `Scarlet.Sass.Runtime.windows-x64` |
-| `win-arm64` | `Scarlet.Sass.Runtime.windows-arm64` |
-| `linux-x64` | `Scarlet.Sass.Runtime.linux-x64` |
-| `linux-arm64` | `Scarlet.Sass.Runtime.linux-arm64` |
-| `linux-musl-x64` | `Scarlet.Sass.Runtime.linux-x64-musl` |
-| `linux-musl-arm64` | `Scarlet.Sass.Runtime.linux-arm64-musl` |
-| `osx-x64` | `Scarlet.Sass.Runtime.darwin-x64` |
-| `osx-arm64` | `Scarlet.Sass.Runtime.darwin-arm64` |
+```powershell
+Install-Package Scarlet.Sass.MSBuild
+```
+
+> **Note:** The base package does not include a Dart Sass runtime. You must choose a runtime option (see
+> [Runtime Options](#runtime-options) below).
+
+## Runtime Options
+
+After installing `Scarlet.Sass.MSBuild`, provide Dart Sass using one of these three approaches.
 
 ### Option 1: Runtime Download
 
-No runtime package at all — the build fetches Dart Sass on first use and caches it:
+Download Dart Sass automatically during the build by setting `SassRuntimeDownload`:
 
 ```xml
 <PropertyGroup>
   <SassRuntimeDownload>true</SassRuntimeDownload>
-  <SassVersionDownload>1.104.1</SassVersionDownload>
-  <SassRuntimeDirectory>$(MSBuildProjectDirectory)\.sass</SassRuntimeDirectory>
+  <SassVersionDownload>1.105.0</SassVersionDownload>
+  <SassRuntimeDirectory>$(MSBuildProjectDirectory)/runtimes</SassRuntimeDirectory>
 </PropertyGroup>
 ```
 
-`SassRuntimeDirectory` is required here — it is where the download lands. Point several projects at one shared directory and they will coordinate: the download is guarded by a global mutex, and a runtime is only treated as usable once its version marker is written, so a build never picks up a half-extracted copy.
+`SassRuntimeDirectory` is required and controls where the download is cached. Point several projects at one
+shared directory and they coordinate through a global mutex. A runtime becomes usable only after its
+version marker is written, so a build never observes a partially extracted copy. Leaving
+`SassVersionDownload` empty resolves the latest GitHub release.
 
-### Option 2: Conditional Package References
+**Advantages:**
+
+- Simplest multi-platform configuration
+- No runtime package references to maintain
+- Each developer or CI agent downloads only the runtime it needs
+- The runtime is cached for later builds
+- Switching versions requires only a `SassVersionDownload` change
+
+### Option 2: Platform-Specific Runtime Packages
+
+Install the runtime package matching the **build host**, not the project's target RID:
+
+```bash
+# Windows x64 / ARM64
+dotnet add package Scarlet.Sass.Runtime.windows-x64
+dotnet add package Scarlet.Sass.Runtime.windows-arm64
+
+# Linux x64 / ARM64 (glibc)
+dotnet add package Scarlet.Sass.Runtime.linux-x64
+dotnet add package Scarlet.Sass.Runtime.linux-arm64
+
+# Linux x64 / ARM64 (musl, for example Alpine)
+dotnet add package Scarlet.Sass.Runtime.linux-x64-musl
+dotnet add package Scarlet.Sass.Runtime.linux-arm64-musl
+
+# macOS x64 / ARM64
+dotnet add package Scarlet.Sass.Runtime.darwin-x64
+dotnet add package Scarlet.Sass.Runtime.darwin-arm64
+```
+
+Runtime packages are versioned independently from `Scarlet.Sass.MSBuild`; their package version is the
+Dart Sass version they contain.
+
+**Advantages:**
+
+- Explicit control over the runtime included in the build
+- No runtime download during the build
+- Works offline after NuGet restore
+
+**Trade-offs:**
+
+- The required Dart Sass version must be available as a runtime package
+
+**Available Runtime Packages:**
+
+| Platform | Runtime | Package Name | Package Version |
+| --- | --- | --- | --- |
+| Windows x64 | `dart-sass-<version>-windows-x64.zip` | `Scarlet.Sass.Runtime.windows-x64` | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.Runtime.windows-x64?color=ff4081&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.Runtime.windows-x64/) |
+| Windows ARM64 | `dart-sass-<version>-windows-arm64.zip` | `Scarlet.Sass.Runtime.windows-arm64` | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.Runtime.windows-arm64?color=ff4081&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.Runtime.windows-arm64/) |
+| Linux x64 | `dart-sass-<version>-linux-x64.tar.gz` | `Scarlet.Sass.Runtime.linux-x64` | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.Runtime.linux-x64?color=ff4081&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.Runtime.linux-x64/) |
+| Linux ARM64 | `dart-sass-<version>-linux-arm64.tar.gz` | `Scarlet.Sass.Runtime.linux-arm64` | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.Runtime.linux-arm64?color=ff4081&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.Runtime.linux-arm64/) |
+| Linux x64, musl | `dart-sass-<version>-linux-x64-musl.tar.gz` | `Scarlet.Sass.Runtime.linux-x64-musl` | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.Runtime.linux-x64-musl?color=ff4081&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.Runtime.linux-x64-musl/) |
+| Linux ARM64, musl | `dart-sass-<version>-linux-arm64-musl.tar.gz` | `Scarlet.Sass.Runtime.linux-arm64-musl` | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.Runtime.linux-arm64-musl?color=ff4081&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.Runtime.linux-arm64-musl/) |
+| macOS x64 | `dart-sass-<version>-macos-x64.tar.gz` | `Scarlet.Sass.Runtime.darwin-x64` | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.Runtime.darwin-x64?color=ff4081&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.Runtime.darwin-x64/) |
+| macOS ARM64 | `dart-sass-<version>-macos-arm64.tar.gz` | `Scarlet.Sass.Runtime.darwin-arm64` | [![NuGet](https://img.shields.io/nuget/v/Scarlet.Sass.Runtime.darwin-arm64?color=ff4081&logo=nuget&style=flat-square)](https://www.nuget.org/packages/Scarlet.Sass.Runtime.darwin-arm64/) |
+
+### Option 3: Conditional Package References
 
 Each runtime package carries a full Dart Sass, so referencing all eight is wasteful. Detect the host and reference only the package it needs — this is what a repository building on more than one platform wants in `Directory.Build.props`:
 
@@ -73,32 +135,53 @@ Each runtime package carries a full Dart Sass, so referencing all eight is waste
 </PropertyGroup>
 
 <ItemGroup Condition="'$(IsWindows)' == 'true' AND '$(IsX64)' == 'true'">
-  <PackageReference Include="Scarlet.Sass.Runtime.windows-x64" Version="1.104.1" PrivateAssets="all" />
+  <PackageReference Include="Scarlet.Sass.Runtime.windows-x64" Version="1.105.0" PrivateAssets="all" />
 </ItemGroup>
 <ItemGroup Condition="'$(IsWindows)' == 'true' AND '$(IsARM64)' == 'true'">
-  <PackageReference Include="Scarlet.Sass.Runtime.windows-arm64" Version="1.104.1" PrivateAssets="all" />
+  <PackageReference Include="Scarlet.Sass.Runtime.windows-arm64" Version="1.105.0" PrivateAssets="all" />
 </ItemGroup>
 <ItemGroup Condition="'$(IsLinux)' == 'true' AND '$(IsX64)' == 'true' AND '$(IsMusl)' != 'true'">
-  <PackageReference Include="Scarlet.Sass.Runtime.linux-x64" Version="1.104.1" PrivateAssets="all" />
+  <PackageReference Include="Scarlet.Sass.Runtime.linux-x64" Version="1.105.0" PrivateAssets="all" />
 </ItemGroup>
 <ItemGroup Condition="'$(IsLinux)' == 'true' AND '$(IsARM64)' == 'true' AND '$(IsMusl)' != 'true'">
-  <PackageReference Include="Scarlet.Sass.Runtime.linux-arm64" Version="1.104.1" PrivateAssets="all" />
+  <PackageReference Include="Scarlet.Sass.Runtime.linux-arm64" Version="1.105.0" PrivateAssets="all" />
 </ItemGroup>
 <ItemGroup Condition="'$(IsLinux)' == 'true' AND '$(IsX64)' == 'true' AND '$(IsMusl)' == 'true'">
-  <PackageReference Include="Scarlet.Sass.Runtime.linux-x64-musl" Version="1.104.1" PrivateAssets="all" />
+  <PackageReference Include="Scarlet.Sass.Runtime.linux-x64-musl" Version="1.105.0" PrivateAssets="all" />
 </ItemGroup>
 <ItemGroup Condition="'$(IsLinux)' == 'true' AND '$(IsARM64)' == 'true' AND '$(IsMusl)' == 'true'">
-  <PackageReference Include="Scarlet.Sass.Runtime.linux-arm64-musl" Version="1.104.1" PrivateAssets="all" />
+  <PackageReference Include="Scarlet.Sass.Runtime.linux-arm64-musl" Version="1.105.0" PrivateAssets="all" />
 </ItemGroup>
 <ItemGroup Condition="'$(IsMacOS)' == 'true' AND '$(IsX64)' == 'true'">
-  <PackageReference Include="Scarlet.Sass.Runtime.darwin-x64" Version="1.104.1" PrivateAssets="all" />
+  <PackageReference Include="Scarlet.Sass.Runtime.darwin-x64" Version="1.105.0" PrivateAssets="all" />
 </ItemGroup>
 <ItemGroup Condition="'$(IsMacOS)' == 'true' AND '$(IsARM64)' == 'true'">
-  <PackageReference Include="Scarlet.Sass.Runtime.darwin-arm64" Version="1.104.1" PrivateAssets="all" />
+  <PackageReference Include="Scarlet.Sass.Runtime.darwin-arm64" Version="1.105.0" PrivateAssets="all" />
 </ItemGroup>
 ```
 
 `IsMusl` is what separates Alpine from glibc distributions; without it a musl host would restore the glibc package and fail at launch rather than at restore.
+
+**Advantages:**
+
+- Builds work on every supported host without changing the project
+- Each developer or CI agent restores only the runtime it needs
+- No runtime downloads during the build
+- Deterministic builds with version-locked packages
+- Works offline after NuGet restore
+
+**Trade-offs:**
+
+- More verbose project configuration
+- The platform-detection conditions must be kept current
+
+---
+
+**Which option should I choose?**
+
+- **Option 1 (Runtime Download):** simplest setup for a multi-platform repository
+- **Option 2 (Platform-Specific Runtime Package):** simplest offline setup for one build platform
+- **Option 3 (Conditional Package References):** deterministic offline builds across several platforms
 
 ### How the Runtime Is Discovered
 
