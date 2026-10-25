@@ -324,6 +324,61 @@ public class SassCompileTaskIntegrationTests
         Assert.Contains(buildEngine.Errors, e => e.Message != null && e.Message.Contains("scarlet-timeout-probe", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void CompileTask_ConcurrentRunsForOneProject_TakeTurns()
+    {
+        // One project built as two MSBuild instances in the same build - a ProjectReference passing its own
+        // global properties is enough - compiles twice. Overlapping, both Dart Sass processes write the same CSS,
+        // both read and rewrite the manifest and settings stamp, and a settings change makes one run delete the
+        // outputs the other has just written.
+        using var workspace = TempWorkspace.Create("compile-concurrent");
+        workspace.WriteFile("Sass/site.scss", ".banner { color: red; }");
+        var item = new TaskItem("Sass");
+        item.SetMetadata("OutputPath", @"wwwroot\css");
+        var tasks = new[] { CreateTask(workspace, item), CreateTask(workspace, item) };
+        var results = new bool[tasks.Length];
+        using var start = new Barrier(tasks.Length);
+
+        // Dedicated threads, as MSBuild nodes would be: the task blocks on its lock for the whole compilation.
+        var threads = tasks.Select((task, index) => new Thread(() =>
+        {
+            start.SignalAndWait();
+            results[index] = task.Execute();
+        })).ToArray();
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        Assert.All(results, Assert.True);
+
+        // Whichever run started its process second must have started it only after the first run had logged
+        // its last line - otherwise the two processes overlapped.
+        var runs = tasks
+            .Select(static task => (MockBuildEngine)task.BuildEngine)
+            .Select(static engine => (Engine: engine, Executing: engine.Messages.Single(static message =>
+                message.Message?.StartsWith("Executing: ", StringComparison.Ordinal) == true).Timestamp))
+            .OrderBy(static run => run.Executing)
+            .ToArray();
+        var lastLineOfFirstRun = runs[0].Engine.Messages.Max(static message => message.Timestamp);
+        Assert.True(
+            runs[1].Executing >= lastLineOfFirstRun,
+            $"The second compilation started at {runs[1].Executing:HH:mm:ss.fff}, before the first one finished at {lastLineOfFirstRun:HH:mm:ss.fff}.");
+
+        // Both started together and a compilation holds the lock for its whole run, so the second one queued
+        // rather than merely happening to start late.
+        Assert.Contains(runs[1].Engine.Messages, static message =>
+            message.Message?.Contains("Waiting for another build compiling Sass", StringComparison.Ordinal) == true);
+
+        Assert.Contains(".banner", File.ReadAllText(workspace.PathTo("wwwroot", "css", "site.css")), StringComparison.Ordinal);
+    }
+
     private static SassCompileTask CreateTask(TempWorkspace workspace, TaskItem item)
     {
         return new SassCompileTask

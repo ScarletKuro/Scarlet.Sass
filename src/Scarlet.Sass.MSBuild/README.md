@@ -237,6 +237,21 @@ File-to-file:
 
 Sass partials whose file name starts with `_` are not entry points. They can still be imported or used by other Sass files.
 
+### Multi-targeted libraries
+
+A library with `<TargetFrameworks>` compiles **once**, in its outer build, and every target framework gets the
+same CSS. That holds however the library is built:
+
+- **Through an app's `ProjectReference`**, which is all `dotnet run --project MyApp` builds. The app reaches one
+  of the library's per-framework builds directly; that build asks the outer build to compile, so a fresh clone
+  still serves the library's CSS.
+- **With `dotnet build -f net8.0`**, which works the same way.
+- **With `--no-incremental`**, which rebuilds every framework's static web assets from the compilation.
+
+Design-time builds in the IDE never compile. If one project is built twice in the same build with different
+global properties (a `ProjectReference` with `AdditionalProperties`, for example), the two compilations take
+turns rather than writing the same files at once.
+
 ## Properties
 
 | Property | Default | Meaning |

@@ -96,6 +96,13 @@ public sealed class SassCompileTask : Task
             }
 
             var sassCommand = ResolveSass(fileSystem);
+
+            // Taken before the stamp and manifest are read: stale-output removal and the settings check below
+            // must see what the previous compilation of this project wrote, not race it.
+            using var runLock = SassRunLock.Acquire(
+                ProjectDirectory,
+                directory => Log.LogMessage(MessageImportance.High, $"Waiting for another build compiling Sass in {directory}..."));
+
             var stampDirectory = ResolveStampDirectory();
             var manifestPath = Path.Combine(stampDirectory, "Sass.generated.txt");
             var stampPath = Path.Combine(stampDirectory, "Sass.settings.stamp");

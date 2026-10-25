@@ -27,6 +27,9 @@ Critical MSBuild concepts for this repo:
 - Static web asset output must be injected into `@(Content)` after compilation.
 - Generated files must be tracked for `dotnet clean`.
 - Multi-TFM projects need the outer build path through `buildMultiTargeting/`.
+- Inner builds compile through the outer build, never on their own: `_SassCompileFromInnerBuild` calls `RunSassBeforeStaticWebAssets` on the outer instance and applies the `Change`-tagged items it `Returns`. That is what lets app `ProjectReference` builds, `dotnet build -f` and `--no-incremental` rebuilds see the CSS (`SassMultiTargetTests`).
+- Removed outputs must be removed from `@(Content)` in their project-relative form: target-time `Remove` compares item specs and the SDK's `wwwroot` glob is relative. Deleting one `.scss` file from a compiled directory is enough to need it.
+- `SassRunLock` must be held from reading the stamp and manifest to rewriting them, so two instances of one project cannot compile over each other.
 - Build-host RID selection is handled by `@(SassRuntimePack)`, not NuGet target RID resolution.
 
 ## Project Structure
