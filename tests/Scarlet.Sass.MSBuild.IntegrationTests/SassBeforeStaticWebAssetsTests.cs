@@ -250,6 +250,55 @@ public class SassBeforeStaticWebAssetsTests
         Assert.False(File.Exists(manifest), "dotnet clean should remove the generated-file manifest.");
     }
 
+    [Fact]
+    public async Task DeletedStylesheet_DoesNotFailTheNextBuild()
+    {
+        // A compilation item is a directory, so deleting or renaming one .scss file is enough to make the task
+        // remove its CSS. The SDK's wwwroot glob is evaluated before that, so the next build still lists the
+        // deleted file as Content - and the static web assets SDK fails on a file that is gone, until yet another
+        // build. The task reports it as an absolute path, the glob holds it relative.
+        using var workspace = CreateRazorClassLibrary();
+        workspace.WriteFile("Sass/extra.scss", ".extra { color: blue; }");
+
+        Assert.Equal(0, (await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}")).ExitCode);
+        Assert.True(File.Exists(workspace.PathTo("wwwroot", "css", "extra.css")));
+
+        File.Delete(workspace.PathTo("Sass", "extra.scss"));
+        var build = await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}");
+
+        Assert.Equal(0, build.ExitCode);
+        Assert.False(File.Exists(workspace.PathTo("wwwroot", "css", "extra.css")));
+        var manifest = await File.ReadAllTextAsync(
+            workspace.PathTo("obj", DotnetCli.Configuration, TargetFramework, "staticwebassets.build.json"));
+        Assert.DoesNotContain("extra.css", manifest, StringComparison.Ordinal);
+        Assert.Contains("site.css", manifest, StringComparison.Ordinal);
+
+        // The removal is recorded for other instances of this build; clean must not leave that record behind.
+        var record = workspace.PathTo("obj", DotnetCli.Configuration, TargetFramework, "Scarlet.Sass", SassCompileTask.RemovedRecordFileName);
+        Assert.True(File.Exists(record), $"Expected a removal record at {record}.");
+        Assert.Equal(0, (await RunDotnet(workspace, $"clean --configuration {DotnetCli.Configuration}")).ExitCode);
+        Assert.False(File.Exists(record), "dotnet clean should remove the removal record.");
+    }
+
+    [Fact]
+    public async Task DeletedStylesheet_IsDroppedByEveryInstanceThatSawItsCss()
+    {
+        // Two instances of one single-target project in one build, both evaluated while extra.css existed. Each
+        // compiles itself, one after the other; the second finds a manifest the first already rewrote.
+        using var workspace = CreateRazorClassLibrary();
+        workspace.WriteFile("Sass/extra.scss", ".extra { color: blue; }");
+        Assert.Equal(0, (await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}")).ExitCode);
+        Assert.True(File.Exists(workspace.PathTo("wwwroot", "css", "extra.css")));
+
+        File.Delete(workspace.PathTo("Sass", "extra.scss"));
+        workspace.WriteFile("TwoInstances.proj", SassMultiTargetTests.TwoInstancesDriver("GeneratedAssetsRcl.csproj", ""));
+
+        var build = await RunDotnet(workspace, $"msbuild TwoInstances.proj -p:Configuration={DotnetCli.Configuration}");
+
+        Assert.Equal(0, build.ExitCode);
+        Assert.False(File.Exists(workspace.PathTo("wwwroot", "css", "extra.css")));
+    }
+
     /// <summary>
     /// A Razor Class Library is the strictest case: its wwwroot files have to be packed under
     /// staticwebassets/ for a consuming app to serve them.

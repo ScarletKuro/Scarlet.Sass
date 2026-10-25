@@ -23,6 +23,11 @@ public sealed class SassCompileTask : Task
     private const int DiagnosticTailLineCount = 50;
     private const int OutputDrainGraceMilliseconds = 5000;
 
+    /// <summary>
+    /// Outputs compilations removed that are still gone, next to the manifest. SassClean deletes it too.
+    /// </summary>
+    internal const string RemovedRecordFileName = "Sass.removed.txt";
+
     [Required]
     public ITaskItem[] Compilations { get; set; } = Array.Empty<ITaskItem>();
 
@@ -96,14 +101,35 @@ public sealed class SassCompileTask : Task
             }
 
             var sassCommand = ResolveSass(fileSystem);
+
+            // Taken before the stamp and manifest are read: stale-output removal and the settings check below
+            // must see what the previous compilation of this project wrote, not race it.
+            using var runLock = SassRunLock.Acquire(
+                ProjectDirectory,
+                directory => Log.LogMessage(MessageImportance.High, $"Waiting for another build compiling Sass in {directory}..."));
+
             var stampDirectory = ResolveStampDirectory();
             var manifestPath = Path.Combine(stampDirectory, "Sass.generated.txt");
+            var removedRecordPath = Path.Combine(stampDirectory, RemovedRecordFileName);
             var stampPath = Path.Combine(stampDirectory, "Sass.settings.stamp");
             var stampContent = CreateStampContent(settings, entries);
             var forceRegenerate = IsStampStale(fileSystem, stampPath, stampContent);
             var expectedFiles = entries.SelectMany(static entry => entry.ExpectedOutputs).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             var previousFiles = ReadManifest(fileSystem, manifestPath);
             var removedFiles = previousFiles.Except(expectedFiles, StringComparer.OrdinalIgnoreCase).ToArray();
+
+            // One project can be built as several instances in one build, each holding a wwwroot glob evaluated
+            // before any of them compiled. Only the first compilation finds the stale outputs in the manifest; the
+            // rest would report nothing removed and keep the deleted file as Content, which the static web assets
+            // SDK rejects. So removals are recorded, merged across compilations - instances compiling different
+            // stylesheets can each remove something - and every compilation reports whatever in the record is still
+            // gone and not produced again. Removing an item that is not there is harmless, so reporting it again on
+            // later builds costs nothing; an output that comes back drops out of the record.
+            var recordedRemovals = ReadManifest(fileSystem, removedRecordPath)
+                .Concat(removedFiles)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Except(expectedFiles, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
             if (forceRegenerate)
             {
@@ -146,8 +172,18 @@ public sealed class SassCompileTask : Task
             fileSystem.File.WriteAllText(stampPath, stampContent);
             fileSystem.File.WriteAllLines(manifestPath, expectedFiles);
 
+            var stillRemoved = recordedRemovals.Where(path => !fileSystem.File.Exists(path)).ToArray();
+            if (stillRemoved.Length > 0)
+            {
+                fileSystem.File.WriteAllLines(removedRecordPath, stillRemoved);
+            }
+            else
+            {
+                fileSystem.File.TryDeleteFile(removedRecordPath);
+            }
+
             GeneratedFiles = expectedFiles.Select(CreateGeneratedFileItem).ToArray();
-            RemovedFiles = removedFiles.Select(static path => (ITaskItem)new TaskItem(path)).ToArray();
+            RemovedFiles = stillRemoved.Select(static path => (ITaskItem)new TaskItem(path)).ToArray();
 
             return !Log.HasLoggedErrors;
         }

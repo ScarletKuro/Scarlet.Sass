@@ -337,6 +337,42 @@ buildMultiTargeting/Scarlet.Sass.MSBuild.targets
 `buildMultiTargeting` is load-bearing for multi-TFM projects because the outer build has an empty
 `$(TargetFramework)`.
 
+### Inner builds the outer build did not dispatch
+
+Running only in the outer build assumes every inner build is dispatched by this project's own outer build,
+after it compiled. Three common builds break that, and each one silently shipped or served a library without
+its CSS:
+
+- **An app's `ProjectReference`** builds the referenced framework's inner build directly. `dotnet run` on the
+  app never builds the library's outer build, so Sass never ran.
+- **`dotnet build -f`** does the same with no app involved.
+- **A rebuild** runs `Clean` first, which evaluates and caches every inner build while the CSS is missing.
+  Content the outer build registers after compiling cannot reach those cached item lists, so the manifests
+  came out empty and `pack --no-build` packed nothing.
+
+`_SassCompileFromInnerBuild` therefore asks the outer build to compile, by calling
+`RunSassBeforeStaticWebAssets` on the same project without `TargetFramework`, and applies the changes the
+target `Returns` to its own `Content`. MSBuild runs a target once per project instance and returns its cached
+result to every later caller, so a normal multi-target build still compiles exactly once, before dispatch, and
+an app-only build compiles exactly once however many frameworks or apps ask.
+
+Three rules came out of testing and review:
+
+- **Removed outputs are matched project-relative.** The task reports them as absolute paths; the SDK's
+  `wwwroot` glob holds them relative, and `Remove` inside a target compares item specs. With absolute paths
+  alone the stale entry survives and the static web assets SDK fails with *No file exists for the asset* -
+  which also happened in plain single-target projects, on the first build after a stylesheet was deleted or
+  renamed in a compiled directory.
+- **Compilations of one project take turns.** A caller that reaches the project with different global
+  properties addresses a different outer instance, which compiles again. `SassCompileTask` holds a
+  machine-wide mutex keyed on the project directory around reading the stamp and manifest, compiling and
+  rewriting them; overlapping compilations measurably did overlap before it.
+- **Removals outlive the compilation that made them.** Those instances each evaluated their `wwwroot` glob
+  before any of them compiled, but only the first compilation finds the stale outputs in the manifest. The task
+  records removals in `Sass.removed.txt` beside the manifest, merged across compilations, and every compilation reports
+  whatever in it is still gone and not produced again, so every instance drops the stale `Content`. `SassClean`
+  deletes the record with the manifest and stamp.
+
 ## CSS Isolation
 
 Scarlet.Sass should support a dedicated CSS isolation path:
