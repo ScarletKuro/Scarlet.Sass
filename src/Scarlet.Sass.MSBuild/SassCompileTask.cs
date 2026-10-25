@@ -23,6 +23,11 @@ public sealed class SassCompileTask : Task
     private const int DiagnosticTailLineCount = 50;
     private const int OutputDrainGraceMilliseconds = 5000;
 
+    /// <summary>
+    /// The last batch of outputs a compilation removed, next to the manifest. SassClean deletes it too.
+    /// </summary>
+    internal const string RemovedRecordFileName = "Sass.removed.txt";
+
     [Required]
     public ITaskItem[] Compilations { get; set; } = Array.Empty<ITaskItem>();
 
@@ -105,12 +110,23 @@ public sealed class SassCompileTask : Task
 
             var stampDirectory = ResolveStampDirectory();
             var manifestPath = Path.Combine(stampDirectory, "Sass.generated.txt");
+            var removedRecordPath = Path.Combine(stampDirectory, RemovedRecordFileName);
             var stampPath = Path.Combine(stampDirectory, "Sass.settings.stamp");
             var stampContent = CreateStampContent(settings, entries);
             var forceRegenerate = IsStampStale(fileSystem, stampPath, stampContent);
             var expectedFiles = entries.SelectMany(static entry => entry.ExpectedOutputs).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             var previousFiles = ReadManifest(fileSystem, manifestPath);
             var removedFiles = previousFiles.Except(expectedFiles, StringComparer.OrdinalIgnoreCase).ToArray();
+
+            // One project can be built as several instances in one build, each holding a wwwroot glob evaluated
+            // before any of them compiled. Only the first compilation finds the stale outputs in the manifest; the
+            // rest would report nothing removed and keep the deleted file as Content, which the static web assets
+            // SDK rejects. So the last batch of removals is recorded, and every compilation reports whatever in it
+            // is still gone and not produced again. Removing an item that is not there is harmless, so reporting it
+            // again on later builds costs nothing.
+            var reportedRemovals = (removedFiles.Length > 0 ? removedFiles : ReadManifest(fileSystem, removedRecordPath))
+                .Except(expectedFiles, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
             if (forceRegenerate)
             {
@@ -152,9 +168,16 @@ public sealed class SassCompileTask : Task
             fileSystem.Directory.CreateDirectory(stampDirectory);
             fileSystem.File.WriteAllText(stampPath, stampContent);
             fileSystem.File.WriteAllLines(manifestPath, expectedFiles);
+            if (removedFiles.Length > 0)
+            {
+                fileSystem.File.WriteAllLines(removedRecordPath, removedFiles);
+            }
 
             GeneratedFiles = expectedFiles.Select(CreateGeneratedFileItem).ToArray();
-            RemovedFiles = removedFiles.Select(static path => (ITaskItem)new TaskItem(path)).ToArray();
+            RemovedFiles = reportedRemovals
+                .Where(path => !fileSystem.File.Exists(path))
+                .Select(static path => (ITaskItem)new TaskItem(path))
+                .ToArray();
 
             return !Log.HasLoggedErrors;
         }

@@ -13,15 +13,14 @@ namespace Scarlet.Sass.MSBuild.IntegrationTests;
 /// <remarks>
 /// These install the packaged targets from a private feed rather than importing the development copy. The
 /// development copy depends on ResolveProjectReferences, which a multi-targeting outer build does not have.
-/// They run alone because they pack the task project's build output, which builds that import the development
-/// copy - every other static web assets test - rebuild through its ProjectReference. Packing while another test
-/// rewrites the DLL fails with NU5026.
+/// The package comes from <see cref="PackedTargetsFixture"/>, built and packed once, never from shared build
+/// output. The class still runs alone because that fixture builds the task project, which every test importing
+/// the development copy rebuilds through its ProjectReference.
 /// </remarks>
 [Collection(nameof(SassMultiTargetTests))]
 [CollectionDefinition(nameof(SassMultiTargetTests), DisableParallelization = true)]
-public class SassMultiTargetTests
+public class SassMultiTargetTests : IClassFixture<PackedTargetsFixture>
 {
-    private const string PackedVersion = "0.0.0-integration-test";
     private const string Library = "Rcl";
 
     private static readonly string RuntimeDirectory =
@@ -30,10 +29,12 @@ public class SassMultiTargetTests
     private static readonly string[] LibraryFrameworks = ["net8.0", "net9.0", "net10.0"];
 
     private readonly ITestOutputHelper _output;
+    private readonly PackedTargetsFixture _package;
 
-    public SassMultiTargetTests(ITestOutputHelper output)
+    public SassMultiTargetTests(ITestOutputHelper output, PackedTargetsFixture package)
     {
         _output = output;
+        _package = package;
     }
 
     [Fact]
@@ -117,6 +118,45 @@ public class SassMultiTargetTests
         await AssertManifestLacksAsset(AppManifest(workspace, "App10", "net10.0"), "css/extra.css");
     }
 
+    /// <summary>
+    /// Two instances of the library in one build - two callers passing different global properties - each hold a
+    /// wwwroot glob evaluated while extra.css still existed. The first compilation deletes it; the second finds a
+    /// manifest that no longer lists it, so unless removals outlive the compilation that made them, the second
+    /// instance keeps the deleted file as Content and fails with "No file exists for the asset".
+    /// </summary>
+    [Fact]
+    public async Task DeletedStylesheet_IsDroppedByEveryInstanceThatSawItsCss()
+    {
+        using var workspace = await CreateWorkspace("multi-target-deleted-variants");
+        workspace.WriteFile($"{Library}/Sass/extra.scss", ".extra { color: blue; }");
+        Assert.Equal(0, (await RunDotnet(workspace, $"build Apps.slnx -c {DotnetCli.Configuration} --no-restore")).ExitCode);
+        Assert.True(File.Exists(LibraryPath(workspace, "wwwroot", "css", "extra.css")));
+
+        File.Delete(LibraryPath(workspace, "Sass", "extra.scss"));
+        workspace.WriteFile("TwoInstances.proj", TwoInstancesDriver($"{Library}/{Library}.csproj", "TargetFramework=net10.0;"));
+
+        var build = await RunDotnet(workspace, $"msbuild TwoInstances.proj -p:Configuration={DotnetCli.Configuration} -v:n");
+
+        Assert.Equal(0, build.ExitCode);
+        Assert.Equal(2, CountCompilations(build));
+        Assert.False(File.Exists(LibraryPath(workspace, "wwwroot", "css", "extra.css")));
+    }
+
+    /// <summary>
+    /// A build that first evaluates <paramref name="project"/> as two instances, A and B, while every output still
+    /// exists - as two parallel callers would - and only then resolves each one's static web assets, in order.
+    /// </summary>
+    internal static string TwoInstancesDriver(string project, string extraProperties) => $"""
+        <Project>
+          <Target Name="Build">
+            <MSBuild Projects="{project}" Targets="GetTargetPath" Properties="{extraProperties}Variant=A" />
+            <MSBuild Projects="{project}" Targets="GetTargetPath" Properties="{extraProperties}Variant=B" />
+            <MSBuild Projects="{project}" Targets="ResolveProjectStaticWebAssets" Properties="{extraProperties}Variant=A" />
+            <MSBuild Projects="{project}" Targets="ResolveProjectStaticWebAssets" Properties="{extraProperties}Variant=B" />
+          </Target>
+        </Project>
+        """;
+
     [Fact]
     public async Task SingleFrameworkBuild_CompilesAndDesignTimeBuild_DoesNot()
     {
@@ -148,17 +188,13 @@ public class SassMultiTargetTests
 
         try
         {
-            var taskProject = Path.Combine(RepositoryRoot.Path, "src", "Scarlet.Sass.MSBuild", "Scarlet.Sass.MSBuild.csproj");
-            Assert.Equal(0, (await RunDotnet(workspace,
-                $"pack \"{taskProject}\" --no-build -c {DotnetCli.Configuration} -p:PackageVersion={PackedVersion} -o feed")).ExitCode);
-
             // A private package cache ensures each test installs the targets just packed, even on repeated runs.
-            workspace.WriteFile("nuget.config", """
+            workspace.WriteFile("nuget.config", $"""
                 <configuration>
                   <config><add key="globalPackagesFolder" value="packages" /></config>
                   <packageSources>
                     <clear />
-                    <add key="local" value="feed" />
+                    <add key="local" value="{SecurityElement.Escape(_package.FeedDirectory)}" />
                     <add key="nuget" value="https://api.nuget.org/v3/index.json" />
                   </packageSources>
                 </configuration>
@@ -172,7 +208,7 @@ public class SassMultiTargetTests
                     <SassRuntimeDirectory>{SecurityElement.Escape(RuntimeDirectory)}</SassRuntimeDirectory>
                   </PropertyGroup>
                   <ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>
-                  <ItemGroup><PackageReference Include="Scarlet.Sass.MSBuild" Version="{PackedVersion}" PrivateAssets="all" /></ItemGroup>
+                  <ItemGroup><PackageReference Include="Scarlet.Sass.MSBuild" Version="{PackedTargetsFixture.Version}" PrivateAssets="all" /></ItemGroup>
                   <ItemGroup>
                     <SassBeforeStaticWebAssets Include="Sass">
                       <OutputPath>wwwroot/css</OutputPath>

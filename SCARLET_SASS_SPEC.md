@@ -356,7 +356,7 @@ target `Returns` to its own `Content`. MSBuild runs a target once per project in
 result to every later caller, so a normal multi-target build still compiles exactly once, before dispatch, and
 an app-only build compiles exactly once however many frameworks or apps ask.
 
-Two rules came out of testing it:
+Three rules came out of testing and review:
 
 - **Removed outputs are matched project-relative.** The task reports them as absolute paths; the SDK's
   `wwwroot` glob holds them relative, and `Remove` inside a target compares item specs. With absolute paths
@@ -367,6 +367,11 @@ Two rules came out of testing it:
   properties addresses a different outer instance, which compiles again. `SassCompileTask` holds a
   machine-wide mutex keyed on the project directory around reading the stamp and manifest, compiling and
   rewriting them; overlapping compilations measurably did overlap before it.
+- **Removals outlive the compilation that made them.** Those instances each evaluated their `wwwroot` glob
+  before any of them compiled, but only the first compilation finds the stale outputs in the manifest. The task
+  records its last batch of removals in `Sass.removed.txt` beside the manifest and every compilation reports
+  whatever in it is still gone and not produced again, so every instance drops the stale `Content`. `SassClean`
+  deletes the record with the manifest and stamp.
 
 ## CSS Isolation
 

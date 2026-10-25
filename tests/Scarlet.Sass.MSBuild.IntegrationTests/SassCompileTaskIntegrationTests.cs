@@ -325,6 +325,40 @@ public class SassCompileTaskIntegrationTests
     }
 
     [Fact]
+    public void CompileTask_KeepsReportingARemovalUntilTheOutputIsProducedAgain()
+    {
+        // A second instance of the project compiling right after the first finds the stale output already gone
+        // from the manifest, yet its own wwwroot glob still lists it. It has to hear about the removal too.
+        using var workspace = TempWorkspace.Create("compile-removal-record");
+        workspace.WriteFile("Sass/site.scss", ".banner { color: red; }");
+        workspace.WriteFile("Sass/extra.scss", ".extra { color: blue; }");
+        var item = new TaskItem("Sass");
+        item.SetMetadata("OutputPath", @"wwwroot\css");
+        var extraCss = workspace.PathTo("wwwroot", "css", "extra.css");
+
+        var both = CreateTask(workspace, item);
+        Assert.True(both.Execute());
+        Assert.Empty(both.RemovedFiles);
+
+        File.Delete(workspace.PathTo("Sass", "extra.scss"));
+
+        var first = CreateTask(workspace, item);
+        Assert.True(first.Execute());
+        Assert.Equal([extraCss], first.RemovedFiles.Select(static file => file.ItemSpec));
+        Assert.False(File.Exists(extraCss));
+
+        var second = CreateTask(workspace, item);
+        Assert.True(second.Execute());
+        Assert.Equal([extraCss], second.RemovedFiles.Select(static file => file.ItemSpec));
+
+        workspace.WriteFile("Sass/extra.scss", ".extra { color: blue; }");
+        var again = CreateTask(workspace, item);
+        Assert.True(again.Execute());
+        Assert.Empty(again.RemovedFiles);
+        Assert.True(File.Exists(extraCss));
+    }
+
+    [Fact]
     public void CompileTask_ConcurrentRunsForOneProject_TakeTurns()
     {
         // One project built as two MSBuild instances in the same build - a ProjectReference passing its own

@@ -116,7 +116,7 @@
       <Output TaskParameter="Lines" ItemName="_SassFilesToClean" />
     </ReadLinesFromFile>
     <Delete Files="@(_SassFilesToClean)" Condition="'@(_SassFilesToClean)' != ''" />
-    <Delete Files="$(_SassStampDirectory)/Sass.generated.txt;$(_SassStampDirectory)/Sass.settings.stamp"
+    <Delete Files="$(_SassStampDirectory)/Sass.generated.txt;$(_SassStampDirectory)/Sass.removed.txt;$(_SassStampDirectory)/Sass.settings.stamp"
             Condition="'$(_SassStampDirectory)' != ''" />
   </Target>
 </Project>
