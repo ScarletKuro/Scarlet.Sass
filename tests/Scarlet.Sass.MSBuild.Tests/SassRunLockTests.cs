@@ -95,6 +95,53 @@ public class SassRunLockTests
         Assert.True(acquired);
     }
 
+    [Fact]
+    public void Acquire_AfterAHolderDiedWithoutReleasing_TakesTheLock()
+    {
+        // A build process that crashes mid-compilation abandons the mutex rather than releasing it.
+        var project = Path.Combine(Root, Guid.NewGuid().ToString("N"));
+        var name = SassRunLock.CreateMutexName(SassRunLock.ResolveDirectory(project));
+        using var held = new Mutex(false, name);
+        var holder = new Thread(() => held.WaitOne());
+        holder.Start();
+        holder.Join();
+
+        using (SassRunLock.Acquire(project, _ => { }))
+        {
+            // Owning it is the point: the next compilation must not wait on a holder that will never return.
+        }
+
+        using var next = SassRunLock.Acquire(project, _ => Assert.Fail("The lock was not released after the abandoned owner."));
+    }
+
+    [Fact]
+    public void Acquire_WhenWaitingFails_PropagatesTheErrorAndHoldsNothing()
+    {
+        var project = Path.Combine(Root, Guid.NewGuid().ToString("N"));
+        var holding = new ManualResetEventSlim();
+        var release = new ManualResetEventSlim();
+        var holder = new Thread(() =>
+        {
+            using (SassRunLock.Acquire(project, _ => { }))
+            {
+                holding.Set();
+                release.Wait();
+            }
+        });
+        holder.Start();
+        holding.Wait();
+
+        var failure = Assert.Throws<InvalidOperationException>(() =>
+            SassRunLock.Acquire(project, _ => throw new InvalidOperationException("logging failed")));
+        Assert.Equal("logging failed", failure.Message);
+
+        release.Set();
+        holder.Join();
+
+        // The failed attempt never owned the mutex, so nothing is left held once the holder lets go.
+        using var next = SassRunLock.Acquire(project, _ => Assert.Fail("A failed attempt left the lock held."));
+    }
+
     private static string MutexNameFor(string projectDirectory) =>
         SassRunLock.CreateMutexName(SassRunLock.ResolveDirectory(projectDirectory));
 }
