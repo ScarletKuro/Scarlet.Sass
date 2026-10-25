@@ -359,6 +359,35 @@ public class SassCompileTaskIntegrationTests
     }
 
     [Fact]
+    public void CompileTask_ReportsEveryRemovalBatchNotOnlyTheLast()
+    {
+        // Instances compiling different stylesheets can each remove something in the same build. The instance that
+        // compiles last must still hear about the first batch, or its glob keeps that deleted file as Content.
+        using var workspace = TempWorkspace.Create("compile-removal-batches");
+        workspace.WriteFile("Sass/site.scss", ".banner { color: red; }");
+        workspace.WriteFile("Sass/extra.scss", ".extra { color: blue; }");
+        workspace.WriteFile("Sass/third.scss", ".third { color: green; }");
+        var item = new TaskItem("Sass");
+        item.SetMetadata("OutputPath", @"wwwroot\css");
+        var extraCss = workspace.PathTo("wwwroot", "css", "extra.css");
+        var thirdCss = workspace.PathTo("wwwroot", "css", "third.css");
+
+        Assert.True(CreateTask(workspace, item).Execute());
+
+        File.Delete(workspace.PathTo("Sass", "extra.scss"));
+        var dropsExtra = CreateTask(workspace, item);
+        Assert.True(dropsExtra.Execute());
+        Assert.Equal([extraCss], dropsExtra.RemovedFiles.Select(static file => file.ItemSpec));
+
+        File.Delete(workspace.PathTo("Sass", "third.scss"));
+        var dropsThird = CreateTask(workspace, item);
+        Assert.True(dropsThird.Execute());
+        Assert.Equal(
+            new[] { extraCss, thirdCss }.Order(StringComparer.OrdinalIgnoreCase),
+            dropsThird.RemovedFiles.Select(static file => file.ItemSpec).Order(StringComparer.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void CompileTask_ConcurrentRunsForOneProject_TakeTurns()
     {
         // One project built as two MSBuild instances in the same build - a ProjectReference passing its own

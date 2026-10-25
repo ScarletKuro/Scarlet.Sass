@@ -369,7 +369,7 @@ Three rules came out of testing and review:
   rewriting them; overlapping compilations measurably did overlap before it.
 - **Removals outlive the compilation that made them.** Those instances each evaluated their `wwwroot` glob
   before any of them compiled, but only the first compilation finds the stale outputs in the manifest. The task
-  records its last batch of removals in `Sass.removed.txt` beside the manifest and every compilation reports
+  records removals in `Sass.removed.txt` beside the manifest, merged across compilations, and every compilation reports
   whatever in it is still gone and not produced again, so every instance drops the stale `Content`. `SassClean`
   deletes the record with the manifest and stamp.
 
