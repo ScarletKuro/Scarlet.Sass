@@ -95,7 +95,7 @@ public class SassCompileTaskDownloadIntegrationTests
                 QuietDeps = "false",
                 RuntimeDirectory = tempRuntimeDirectory,
                 SassRuntimeDownload = true,
-                SassVersionDownload = "1.104.1"
+                SassVersionDownload = PinnedSassVersion.Value
             };
 
             Assert.True(task.Execute());
