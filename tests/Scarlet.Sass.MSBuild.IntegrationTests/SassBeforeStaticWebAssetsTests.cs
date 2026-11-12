@@ -18,7 +18,7 @@ namespace Scarlet.Sass.MSBuild.IntegrationTests;
 public class SassBeforeStaticWebAssetsTests
 {
     private const string GeneratedAsset = "css/site.css";
-    private const string TargetFramework = "net10.0";
+    private const string TargetFramework = "net11.0";
 
     private readonly ITestOutputHelper _output;
 

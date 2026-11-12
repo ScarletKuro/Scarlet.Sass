@@ -137,7 +137,7 @@ else
     echo "✓ Sass was resolved from runtime pack $RUNTIME_PACKAGE (outer build)"
 fi
 
-for tfm in net8.0 net9.0 net10.0; do
+for tfm in net8.0 net9.0 net10.0 net11.0; do
     if [ ! -d "bin/Debug/$tfm" ]; then
         echo "✗ $tfm build output directory is missing"
         FAILED=1
@@ -203,7 +203,7 @@ else
     FAILED=1
 fi
 
-for tfm in net8.0 net9.0 net10.0; do
+for tfm in net8.0 net9.0 net10.0 net11.0; do
     MATCHES="$(count_manifest_css "obj/Debug/$tfm/staticwebassets.build.json")"
     if [ "$MATCHES" -eq 1 ]; then
         echo "✓ $tfm static web assets manifest carries the CSS"
@@ -228,7 +228,7 @@ else
 fi
 
 section "Building a referencing app on its own"
-# What dotnet run on an app does: its ProjectReference builds the library's net10.0 inner build directly and
+# What dotnet run on an app does: its ProjectReference builds the library's net11.0 inner build directly and
 # never the library's outer build, so the inner build has to ask the outer one to compile. Before it did, Sass
 # never ran here and the app answered 404 for the library's CSS.
 RCL_DIR="$(pwd)"
@@ -253,7 +253,7 @@ else
     FAILED=1
 fi
 
-MATCHES="$(count_manifest_css "$APP_DIR/obj/Debug/net10.0/staticwebassets.build.json")"
+MATCHES="$(count_manifest_css "$APP_DIR/obj/Debug/net11.0/staticwebassets.build.json")"
 if [ "$MATCHES" -eq 1 ]; then
     echo "✓ App manifest carries the library's CSS"
 else
@@ -264,7 +264,7 @@ fi
 # Serve it: the manifest is the means, the app answering for the CSS is the point. Development is the
 # environment in which an app serves referenced projects' static web assets straight from their wwwroot.
 APP_PORT=$((20000 + RANDOM % 10000))
-ASPNETCORE_ENVIRONMENT=Development dotnet "$APP_DIR/bin/Debug/net10.0/TestApp.dll" \
+ASPNETCORE_ENVIRONMENT=Development dotnet "$APP_DIR/bin/Debug/net11.0/TestApp.dll" \
     --urls "http://127.0.0.1:$APP_PORT" --contentRoot "$APP_DIR" > app-run.log 2>&1 &
 APP_PID=$!
 CSS_URL="http://127.0.0.1:$APP_PORT/_content/TestRclMultiTfm/css/site.css"
