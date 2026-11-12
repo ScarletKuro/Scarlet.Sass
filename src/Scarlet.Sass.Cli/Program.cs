@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Abstractions;
+using Scarlet.Sass.Cli.Watch;
 using Scarlet.Sass.Core;
 using Scarlet.Sass.Core.Providers;
 
@@ -48,13 +49,26 @@ internal static class Program
                 targetPlatform,
                 log));
 
+        var log = new ConsoleSassLogger(Console.Error);
         var application = new SassCliApplication(
             resolver,
-            new ProcessLauncher(new ConsoleSassLogger(Console.Error)),
+            new ProcessLauncher(log),
             options,
             Console.Out,
             Console.Error);
 
-        return application.Run(args);
+        var dispatcher = new SassCommandDispatcher(
+            application,
+            new SassWatchCommand(
+                new MsBuildWatchConfigurationProvider(),
+                new WatchProcessLauncher(log),
+                new WatchSessionLockProvider(options.CacheRoot),
+                Console.Out,
+                Console.Error,
+                Directory.GetCurrentDirectory,
+                Environment.GetEnvironmentVariable),
+            options.PurePassthrough);
+
+        return dispatcher.Run(args);
     }
 }
