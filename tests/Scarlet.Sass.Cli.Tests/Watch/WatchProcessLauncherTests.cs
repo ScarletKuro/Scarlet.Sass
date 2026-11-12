@@ -5,6 +5,14 @@ namespace Scarlet.Sass.Cli.Tests.Watch;
 public class WatchProcessLauncherTests
 {
     [Fact]
+    public void Run_WithNoInvocations_ShouldSucceedWithoutStartingAnything()
+    {
+        var launcher = new WatchProcessLauncher(new ConsoleSassLogger(new StringWriter()));
+
+        Assert.Equal(ExitCodes.Success, launcher.Run([]));
+    }
+
+    [Fact]
     public void CreateStartInfo_ShouldPassTheBuildCommandLineVerbatimFromTheBuildWorkingDirectory()
     {
         var invocation = new SassWatchInvocation(

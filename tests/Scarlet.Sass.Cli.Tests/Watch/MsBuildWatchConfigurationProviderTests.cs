@@ -69,6 +69,36 @@ public class MsBuildWatchConfigurationProviderTests
     }
 
     [Fact]
+    public void ParseTargetResult_WithoutGeneratedPathsMetadata_ShouldReturnAnEmptyList()
+    {
+        var item = ValidItem();
+        item.Remove("GeneratedPathsBase64");
+
+        var invocation = Assert.Single(MsBuildWatchConfigurationProvider.ParseTargetResult(CreateJson(item), "App.csproj"));
+
+        Assert.Empty(invocation.GeneratedPaths);
+    }
+
+    [Theory]
+    [InlineData("5")]
+    [InlineData("null")]
+    [InlineData("[]")]
+    public void ParseTargetResult_WithNonStringGeneratedPathsMetadata_ShouldFailClearly(string value)
+    {
+        var item = ValidItem();
+        item.Remove("GeneratedPathsBase64");
+        var json = CreateJson(item).Replace(
+            "\"InputPathsBase64\"",
+            $"\"GeneratedPathsBase64\":{value},\"InputPathsBase64\"",
+            StringComparison.Ordinal);
+
+        var exception = Assert.Throws<SassWatchException>(
+            () => MsBuildWatchConfigurationProvider.ParseTargetResult(json, "App.csproj"));
+
+        Assert.Contains("invalid watch metadata 'GeneratedPathsBase64'", exception.Message);
+    }
+
+    [Fact]
     public void ParseTargetResult_WithAnUnknownProtocol_ShouldFailClearly()
     {
         var item = ValidItem();

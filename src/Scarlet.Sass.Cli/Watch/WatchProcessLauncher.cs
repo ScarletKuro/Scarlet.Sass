@@ -13,8 +13,18 @@ internal sealed class WatchProcessLauncher : IWatchProcessLauncher
 
     public WatchProcessLauncher(ISassLogger log) => _log = log;
 
-    [ExcludeFromCodeCoverage]
     public int Run(IEnumerable<SassWatchInvocation> invocations)
+    {
+        var configured = invocations.ToArray();
+
+        // Nothing to wait for. Without this, Task.WhenAny below would throw on an empty set.
+        return configured.Length == 0
+            ? ExitCodes.Success
+            : RunProcesses(configured);
+    }
+
+    [ExcludeFromCodeCoverage]
+    private int RunProcesses(IReadOnlyList<SassWatchInvocation> invocations)
     {
         var processes = new List<Process>();
 
