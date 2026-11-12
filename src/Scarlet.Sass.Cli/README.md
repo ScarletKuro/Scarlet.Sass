@@ -92,8 +92,8 @@ dotnet sass --scarlet-info
 dotnet sass --scarlet-info --json
 ```
 
-That is the only argument the tool reserves for itself, it is recognised only as the *first* argument, and
-`SCARLET_SASS_PASSTHROUGH=1` disables even that. It never downloads anything — it reports the URL it
+That and [`watch`](#watching-a-projects-stylesheets) are the only arguments the tool reserves for itself,
+both are recognised only as the *first* argument, and `SCARLET_SASS_PASSTHROUGH=1` disables even that. It never downloads anything — it reports the URL it
 *would* use.
 
 ## Configuration
@@ -105,7 +105,7 @@ That is the only argument the tool reserves for itself, it is recognised only as
 | `SCARLET_SASS_CACHE` | Override the download cache root. |
 | `SCARLET_SASS_NO_EMBEDDED` | Ignore the embedded runtime. |
 | `SCARLET_SASS_DIAGNOSTICS` | Print the resolved Sass launcher to stderr before running. |
-| `SCARLET_SASS_PASSTHROUGH` | Disable `--scarlet-info` so every argument reaches Sass. |
+| `SCARLET_SASS_PASSTHROUGH` | Disable `--scarlet-info` and `watch` so every argument reaches Sass. |
 | `SCARLET_SASS_DOWNLOAD_TIMEOUT` | Seconds to wait for a concurrent download. Defaults to 300. |
 
 Configuration is environment variables rather than command-line flags on purpose: every argument belongs
@@ -127,8 +127,39 @@ Clear `<cache>/runtimes/latest/` (or point `SCARLET_SASS_CACHE` elsewhere) to pi
 
 If you want Sass to run as part of `dotnet build` and have its CSS included in ASP.NET Core, Blazor or Razor
 Class Library static web assets, use
-[`Scarlet.Sass.MSBuild`](https://www.nuget.org/packages/Scarlet.Sass.MSBuild/) instead. The two are
-independent; this tool is for the command line.
+[`Scarlet.Sass.MSBuild`](https://www.nuget.org/packages/Scarlet.Sass.MSBuild/) instead. The two work
+independently; this tool is for the command line.
+
+## Watching a project's stylesheets
+
+When the project also references `Scarlet.Sass.MSBuild`, the tool can watch exactly what the build
+compiles:
+
+```bash
+dotnet watch
+dotnet sass watch
+```
+
+Run each in its own terminal. `dotnet sass watch` asks the project for the Dart Sass command lines its
+build runs — every `SassBeforeStaticWebAssets` input, output style, source map setting, load path and
+additional argument — and runs them with `--watch`. Nothing is repeated on the command line, and the
+watcher cannot drift from the build: both write the same files with the same settings. Blazor Hot Reload
+does not rebuild, so without a watcher like this the CSS would not change until you restart.
+
+| Option | Effect |
+|--------|--------|
+| `-p`, `--project <path>` | Project file or directory. Defaults to the current directory. |
+| `-c`, `--configuration <name>` | MSBuild configuration to evaluate. Defaults to `Debug`. |
+| `--poll` | Poll instead of using file-system events, for containers and WSL. Implied when `DOTNET_USE_POLLING_FILE_WATCHER` is `1` or `true`. |
+
+MSBuild property overrides are deliberately not accepted; change the project instead, so the build and the
+watcher keep agreeing. A second `dotnet sass watch` for the same outputs exits immediately rather than
+racing the first one.
+
+`watch` is reserved only as the bare *first* argument. `dotnet sass --watch in:out` is still Dart Sass's own
+watch mode, and `SCARLET_SASS_PASSTHROUGH=1` gives the word back to Dart Sass too. If the command fails with
+`MSB4057`, the project does not reference a `Scarlet.Sass.MSBuild` version that provides the watch target,
+or has not been restored.
 
 ## Links
 

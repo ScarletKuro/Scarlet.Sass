@@ -199,6 +199,13 @@ jobs:
           chmod +x tests/e2e/cli-tool/verify.sh
           tests/e2e/cli-tool/verify.sh "${{ github.workspace }}" "${{ env.VERSION }}" "${{ env.Sass_VERSION }}"
 
+      - name: E2E Test - dotnet sass watch with Blazor Hot Reload
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          chmod +x tests/e2e/hot-reload/verify.sh
+          tests/e2e/hot-reload/verify.sh "${{ github.workspace }}" "${{ env.VERSION }}" "${{ env.Sass_VERSION }}"
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
@@ -368,6 +375,13 @@ jobs:
         run: |
           chmod +x tests/e2e/cli-tool/verify.sh
           tests/e2e/cli-tool/verify.sh "$GITHUB_WORKSPACE" "${{ env.VERSION }}" "${{ env.Sass_VERSION }}"
+
+      - name: E2E Test - dotnet sass watch with Blazor Hot Reload
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          chmod +x tests/e2e/hot-reload/verify.sh
+          tests/e2e/hot-reload/verify.sh "$GITHUB_WORKSPACE" "${{ env.VERSION }}" "${{ env.Sass_VERSION }}"
 
       - name: Upload coverage to Codecov
         if: matrix.arch == 'x64'

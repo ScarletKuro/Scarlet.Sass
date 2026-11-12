@@ -1,0 +1,3 @@
+@page "/"
+
+<h1 id="hot-reload-probe" class="probe" data-process-id="@Environment.ProcessId">Sass hot reload</h1>

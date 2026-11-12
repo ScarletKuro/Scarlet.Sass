@@ -1,0 +1,5 @@
+@use "tokens";
+
+.probe::after {
+  content: tokens.$probe;
+}

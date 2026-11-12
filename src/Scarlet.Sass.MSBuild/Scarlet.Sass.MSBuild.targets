@@ -66,6 +66,7 @@
                      SassVersionDownload="$(SassVersionDownload)"
                      DownloadMutexTimeoutSeconds="$(SassDownloadMutexTimeoutSeconds)"
                      TimeoutMilliseconds="$(SassTimeoutMilliseconds)"
+                     ConfigurationOnly="false"
                      RuntimePacks="@(SassRuntimePack)">
       <Output TaskParameter="GeneratedFiles" ItemName="_SassGeneratedFiles" />
       <Output TaskParameter="RemovedFiles" ItemName="_SassRemovedFiles" />
@@ -135,6 +136,45 @@
     </ItemGroup>
   </Target>
 
+  <!-- Resolves what `dotnet sass watch` runs, without compiling: one Dart Sass watch process per settings group,
+       with exactly the command line the compilation above would use, plus the watch flag. The watcher and the build then
+       write identical CSS to the same files, whichever writes last. Conditioned like the compilation, so it
+       resolves the outer build of a multi-targeted project, where the compilation runs. -->
+  <Target Name="_SassResolveWatchConfiguration"
+          DependsOnTargets="ResolveProjectReferences;_SassResolveStampDirectory"
+          Condition="'$(SassEnabled)' == 'true' AND '@(SassBeforeStaticWebAssets)' != '' AND ('$(TargetFrameworks)' == '' OR '$(TargetFramework)' == '')">
+    <SassCompileTask Compilations="@(SassBeforeStaticWebAssets)"
+                     ProjectDirectory="$(MSBuildProjectDirectory)"
+                     Configuration="$(Configuration)"
+                     OutputStyle="$(SassOutputStyle)"
+                     SourceMap="$(SassSourceMap)"
+                     EmbedSources="$(SassEmbedSources)"
+                     QuietDeps="$(SassQuietDeps)"
+                     LoadPaths="$(SassLoadPaths)"
+                     PkgImporter="$(SassPkgImporter)"
+                     SilenceDeprecations="$(SassSilenceDeprecations)"
+                     FatalDeprecations="$(SassFatalDeprecations)"
+                     AdditionalArguments="$(SassAdditionalArguments)"
+                     StampDirectory="$(_SassStampDirectory)"
+                     RuntimeDirectory="$(SassRuntimeDirectory)"
+                     SassRuntimeDownload="$(SassRuntimeDownload)"
+                     SassVersionDownload="$(SassVersionDownload)"
+                     DownloadMutexTimeoutSeconds="$(SassDownloadMutexTimeoutSeconds)"
+                     TimeoutMilliseconds="$(SassTimeoutMilliseconds)"
+                     ConfigurationOnly="true"
+                     RuntimePacks="@(SassRuntimePack)">
+      <Output TaskParameter="GeneratedFiles" ItemName="_SassWatchGeneratedFiles" />
+      <Output TaskParameter="RemovedFiles" ItemName="_SassWatchRemovedFiles" />
+      <Output TaskParameter="WatchInvocations" ItemName="_SassWatchInvocations" />
+    </SassCompileTask>
+  </Target>
+
+  <!-- Queried by `dotnet sass watch` through dotnet msbuild -getTargetResult. Unconditional on purpose: a skipped
+       target reports Skipped rather than an empty Success, which the CLI would report as a failure, so a disabled
+       or unconfigured project must still succeed here, with no invocations. -->
+  <Target Name="ResolveSassWatchConfiguration"
+          DependsOnTargets="_SassResolveWatchConfiguration"
+          Returns="@(_SassWatchInvocations)" />
   <!-- Hooked to both targets deliberately. In a single-target-framework project CoreClean runs with
        $(IntermediateOutputPath) set to obj/<config>/<tfm>/, which is where the build wrote the manifest. In
        a multi-targeted one CoreClean only runs in the inner builds, whose obj/<config>/<tfm>/ never held a

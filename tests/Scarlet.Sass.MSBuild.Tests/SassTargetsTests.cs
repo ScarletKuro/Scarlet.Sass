@@ -30,6 +30,8 @@ public class SassTargetsTests
     [InlineData("_SassCompileFromInnerBuild", null)]
     [InlineData("_SassResolveStampDirectory", null)]
     [InlineData("RunSassBeforeStaticWebAssets", "ResolveProjectReferences")]
+    [InlineData("_SassResolveWatchConfiguration", "ResolveProjectReferences")]
+    [InlineData("ResolveSassWatchConfiguration", null)]
     public void DevelopmentTargets_ShouldStayInSyncWithPackagedTargets(string targetName, string? developmentOnlyPrefix)
     {
         // Arrange
@@ -70,24 +72,29 @@ public class SassTargetsTests
         // invocation inside it is not different, though: all three copies pass the same settings, and the
         // multi-targeting copy is the one the Razor Class Library scenario actually runs. Drift there would
         // reach consumers through the primary use case with nothing else watching for it.
-        var packaged = LoadCompileTask(PackagedTargets);
-        var other = LoadCompileTask(targetsRelativePath);
+        // Every invocation, in order: the compilation and the watch-configuration query must both stay in step.
+        var packagedTasks = LoadCompileTasks(PackagedTargets);
+        var otherTasks = LoadCompileTasks(targetsRelativePath);
+        Assert.Equal(packagedTasks.Count, otherTasks.Count);
 
-        Assert.True(
-            XNode.DeepEquals(packaged, other),
-            $"""
-             The SassCompileTask invocation differs between the packaged and {targetsRelativePath} targets files.
+        foreach (var (packaged, other) in packagedTasks.Zip(otherTasks))
+        {
+            Assert.True(
+                XNode.DeepEquals(packaged, other),
+                $"""
+                 A SassCompileTask invocation differs between the packaged and {targetsRelativePath} targets files.
 
-             {PackagedTargets}:
-             {packaged}
+                 {PackagedTargets}:
+                 {packaged}
 
-             {targetsRelativePath}:
-             {other}
-             """);
+                 {targetsRelativePath}:
+                 {other}
+                 """);
+        }
     }
 
-    private static XElement LoadCompileTask(string targetsRelativePath) =>
-        Assert.Single(LoadProject(targetsRelativePath).Descendants("SassCompileTask"));
+    private static IReadOnlyList<XElement> LoadCompileTasks(string targetsRelativePath) =>
+        LoadProject(targetsRelativePath).Descendants("SassCompileTask").ToList();
 
     private static IReadOnlyList<string> LoadTargetNames(string targetsRelativePath) =>
         LoadProject(targetsRelativePath)

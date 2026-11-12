@@ -57,11 +57,32 @@ public sealed class SassCompileTask : Task
     /// </summary>
     public int TimeoutMilliseconds { get; set; } = 0;
 
+    /// <summary>
+    /// Resolves the Dart Sass launch command and the arguments each compilation would run with, without
+    /// compiling. Used by the project-aware <c>dotnet sass watch</c>; normal builds leave this disabled.
+    /// </summary>
+    public bool ConfigurationOnly { get; set; }
+
     [Output]
     public ITaskItem[] GeneratedFiles { get; private set; } = Array.Empty<ITaskItem>();
 
     [Output]
     public ITaskItem[] RemovedFiles { get; private set; } = Array.Empty<ITaskItem>();
+
+    /// <summary>
+    /// One Dart Sass watch process per settings group, carrying exactly the command line the build would run for
+    /// that group with <c>--watch</c> added. The command line travels as a single string, base64 encoded, because
+    /// that is how the build hands it to Dart Sass: <c>SassAdditionalArguments</c> is appended verbatim, and
+    /// re-splitting it into separate arguments could change how Dart Sass parses it - and so what it writes.
+    /// </summary>
+    [Output]
+    public ITaskItem[] WatchInvocations { get; private set; } = Array.Empty<ITaskItem>();
+
+    /// <summary>
+    /// Bumped on both sides - here and in the CLI that reads it - whenever watch metadata is renamed, removed or
+    /// changes meaning. Adding metadata the CLI treats as optional does not need a bump.
+    /// </summary>
+    internal const string WatchProtocolVersion = "1";
 
     public override bool Execute()
     {
@@ -101,6 +122,18 @@ public sealed class SassCompileTask : Task
             }
 
             var sassCommand = ResolveSass(fileSystem);
+
+            if (ConfigurationOnly)
+            {
+                // Before the run lock: resolving configuration compiles nothing, so it must not wait for, or hold
+                // up, a compilation of this project.
+                WatchInvocations = entries
+                    .GroupBy(static entry => entry.Settings.ToString())
+                    .Select(group => CreateWatchInvocation(sassCommand, group.ToArray()))
+                    .ToArray();
+
+                return !Log.HasLoggedErrors;
+            }
 
             // Taken before the stamp and manifest are read: stale-output removal and the settings check below
             // must see what the previous compilation of this project wrote, not race it.
@@ -380,6 +413,34 @@ public sealed class SassCompileTask : Task
             SassRuntimePackFactory.FromTaskItems(RuntimePacks, warning => Log.LogWarning(warning)),
             message => Log.LogMessage(MessageImportance.Normal, message));
     }
+
+    /// <summary>
+    /// Describes the watch process for one settings group: the same launch command and the same arguments as the
+    /// compilation below, so the watcher and the build write identical CSS to the same files.
+    /// </summary>
+    private ITaskItem CreateWatchInvocation(SassLaunchCommand command, IReadOnlyList<SassEntry> entries)
+    {
+        var processArguments = SassCommandLine.BuildProcessArguments(command, BuildArguments(entries[0].Settings, entries))
+            + " --watch";
+
+        var item = new TaskItem(entries[0].InputPath);
+        item.SetMetadata("ProtocolVersion", WatchProtocolVersion);
+        item.SetMetadata("ExecutablePath", command.FileName);
+        item.SetMetadata("DisplayPath", command.DisplayPath);
+        item.SetMetadata("WorkingDirectory", ProjectDirectory);
+        item.SetMetadata("ProcessArgumentsBase64", EncodeBase64(processArguments));
+        item.SetMetadata("InputPathsBase64", EncodeEach(entries.Select(static entry => entry.InputPath)));
+        item.SetMetadata("OutputPathsBase64", EncodeEach(entries.Select(static entry => entry.OutputPath)));
+        item.SetMetadata("GeneratedPathsBase64", EncodeEach(entries.SelectMany(static entry => entry.ExpectedOutputs)));
+
+        return item;
+    }
+
+    // Base64 per value, joined with ';': MSBuild metadata cannot otherwise carry paths and arguments losslessly.
+    private static string EncodeEach(IEnumerable<string> values) =>
+        string.Join(";", values.Select(EncodeBase64));
+
+    private static string EncodeBase64(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
 
     private static string BuildArguments(SassSettings globalSettings, IReadOnlyList<SassEntry> entries)
     {

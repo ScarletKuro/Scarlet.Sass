@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.Build.Utilities;
 using Xunit.Abstractions;
 
@@ -441,6 +442,99 @@ public class SassCompileTaskIntegrationTests
 
         Assert.Contains(".banner", File.ReadAllText(workspace.PathTo("wwwroot", "css", "site.css")), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void CompileTask_InConfigurationOnlyMode_DescribesTheWatcherWithoutCompiling()
+    {
+        using var workspace = TempWorkspace.Create("watch-configuration");
+        workspace.WriteFile("Sass/site.scss", ".banner { color: red; }");
+        var item = new TaskItem("Sass");
+        item.SetMetadata("OutputPath", @"wwwroot\css");
+        var task = CreateTask(workspace, item);
+        task.ConfigurationOnly = true;
+
+        Assert.True(task.Execute());
+
+        var invocation = Assert.Single(task.WatchInvocations);
+        Assert.Equal(SassCompileTask.WatchProtocolVersion, invocation.GetMetadata("ProtocolVersion"));
+        Assert.Equal(workspace.RootDirectory, invocation.GetMetadata("WorkingDirectory"));
+        Assert.True(File.Exists(invocation.GetMetadata("ExecutablePath")), "ExecutablePath must be the launch executable.");
+        Assert.EndsWith(" --watch", DecodeOne(invocation.GetMetadata("ProcessArgumentsBase64")), StringComparison.Ordinal);
+        // A directory item compiles as a directory pair (Sass:wwwroot/css), exactly as the build passes it.
+        Assert.Equal([workspace.PathTo("Sass")], DecodeEach(invocation.GetMetadata("InputPathsBase64")));
+        Assert.Equal([workspace.PathTo("wwwroot", "css")], DecodeEach(invocation.GetMetadata("OutputPathsBase64")));
+        Assert.Contains(workspace.PathTo("wwwroot", "css", "site.css"), DecodeEach(invocation.GetMetadata("GeneratedPathsBase64")));
+
+        // A configuration query compiles nothing and records nothing.
+        Assert.False(Directory.Exists(workspace.PathTo("wwwroot")));
+        Assert.Empty(task.GeneratedFiles);
+    }
+
+    [Fact]
+    public void CompileTask_WatchCommandLine_IsExactlyWhatTheBuildRuns_PlusWatch()
+    {
+        // The whole point of a project-aware watcher: if its command line drifted from the build's by a single
+        // argument, the two would keep overwriting each other's CSS with different output. AdditionalArguments is
+        // included because it travels verbatim, which is what re-splitting it could have broken.
+        using var workspace = TempWorkspace.Create("watch-matches-build");
+        workspace.WriteFile("Sass/site.scss", ".banner { color: red; }");
+        TaskItem Item()
+        {
+            var item = new TaskItem("Sass");
+            item.SetMetadata("OutputPath", @"wwwroot\css");
+            return item;
+        }
+
+        var engine = new MockBuildEngine(_output);
+        var build = CreateTask(workspace, Item());
+        build.BuildEngine = engine;
+        build.LoadPaths = "node_modules;vendor styles";
+        build.AdditionalArguments = "--charset";
+        Assert.True(build.Execute());
+        var executed = Assert.Single(engine.Messages, static message =>
+            message.Message?.StartsWith("Executing: ", StringComparison.Ordinal) == true).Message!["Executing: ".Length..];
+
+        var query = CreateTask(workspace, Item());
+        query.LoadPaths = build.LoadPaths;
+        query.AdditionalArguments = build.AdditionalArguments;
+        query.ConfigurationOnly = true;
+        Assert.True(query.Execute());
+        var invocation = Assert.Single(query.WatchInvocations);
+
+        // The build logs the quoted executable followed by its process arguments.
+        Assert.Equal(
+            executed + " --watch",
+            SassCommandLine.QuoteArgument(invocation.GetMetadata("ExecutablePath")) + " "
+                + DecodeOne(invocation.GetMetadata("ProcessArgumentsBase64")));
+    }
+
+    [Fact]
+    public void CompileTask_InConfigurationOnlyMode_ReturnsOneWatcherPerSettingsGroup()
+    {
+        // Compilation runs one Dart Sass process per distinct settings; the watcher must split the same way, or a
+        // stylesheet would be watched with another compilation's settings.
+        using var workspace = TempWorkspace.Create("watch-groups");
+        workspace.WriteFile("Sass/site.scss", ".banner { color: red; }");
+        workspace.WriteFile("Admin/admin.scss", ".admin { color: blue; }");
+        var site = new TaskItem("Sass");
+        site.SetMetadata("OutputPath", @"wwwroot\css");
+        var admin = new TaskItem("Admin");
+        admin.SetMetadata("OutputPath", @"wwwroot\admin");
+        admin.SetMetadata("OutputStyle", "Expanded");
+        var task = CreateTask(workspace, site);
+        task.Compilations = [site, admin];
+        task.ConfigurationOnly = true;
+
+        Assert.True(task.Execute());
+
+        Assert.Equal(2, task.WatchInvocations.Length);
+        Assert.Contains(task.WatchInvocations, static invocation => DecodeOne(invocation.GetMetadata("ProcessArgumentsBase64")).Contains("--style=compressed", StringComparison.Ordinal));
+        Assert.Contains(task.WatchInvocations, static invocation => DecodeOne(invocation.GetMetadata("ProcessArgumentsBase64")).Contains("--style=expanded", StringComparison.Ordinal));
+    }
+
+    private static string DecodeOne(string encoded) => Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
+
+    private static string[] DecodeEach(string encoded) => encoded.Split(';').Select(DecodeOne).ToArray();
 
     private static SassCompileTask CreateTask(TempWorkspace workspace, TaskItem item)
     {

@@ -155,20 +155,48 @@ public class SassContractTests
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToList();
 
-        var task = Assert.Single(
-            LoadProject(targetsRelativePath).Descendants("SassCompileTask"));
+        // Every invocation: the watch-configuration query has to resolve exactly what the compilation runs, so an
+        // input missing from it would make `dotnet sass watch` write different CSS from the build.
+        var tasks = LoadProject(targetsRelativePath).Descendants("SassCompileTask").ToList();
+        Assert.NotEmpty(tasks);
 
-        var actual = task.Attributes()
-            .Select(attribute => attribute.Name.LocalName)
-            .OrderBy(name => name, StringComparer.Ordinal)
-            .ToList();
+        foreach (var task in tasks)
+        {
+            var actual = task.Attributes()
+                .Select(attribute => attribute.Name.LocalName)
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToList();
 
-        Assert.Equal(expected, actual);
+            Assert.Equal(expected, actual);
 
-        // A wired-but-empty attribute passes the set check while behaving exactly like an unwired one.
-        Assert.All(task.Attributes(), attribute => Assert.False(
-            string.IsNullOrWhiteSpace(attribute.Value),
-            $"{attribute.Name.LocalName} is wired to an empty value in {targetsRelativePath}."));
+            // A wired-but-empty attribute passes the set check while behaving exactly like an unwired one.
+            Assert.All(task.Attributes(), attribute => Assert.False(
+                string.IsNullOrWhiteSpace(attribute.Value),
+                $"{attribute.Name.LocalName} is wired to an empty value in {targetsRelativePath}."));
+        }
+    }
+
+    [Theory]
+    [InlineData("build/Scarlet.Sass.MSBuild.targets")]
+    [InlineData("buildMultiTargeting/Scarlet.Sass.MSBuild.targets")]
+    [InlineData("Scarlet.Sass.MSBuild.targets")]
+    public void ResolveWatchConfiguration_ShouldSucceedEmptyWhenResolutionIsDisabled(string targetsRelativePath)
+    {
+        // `dotnet sass watch` reads the target's result. A conditional target that is skipped reports Skipped, not
+        // an empty Success, which the CLI would turn into an error for a project that simply has nothing to watch.
+        var project = LoadProject(targetsRelativePath);
+        var publicTarget = Assert.Single(
+            project.Elements("Target"),
+            target => target.Attribute("Name")?.Value == "ResolveSassWatchConfiguration");
+        var helperTarget = Assert.Single(
+            project.Elements("Target"),
+            target => target.Attribute("Name")?.Value == "_SassResolveWatchConfiguration");
+
+        Assert.Null(publicTarget.Attribute("Condition"));
+        Assert.Equal("@(_SassWatchInvocations)", publicTarget.Attribute("Returns")?.Value);
+        Assert.Contains("_SassResolveWatchConfiguration", publicTarget.Attribute("DependsOnTargets")?.Value, StringComparison.Ordinal);
+        Assert.Contains("'$(SassEnabled)' == 'true'", helperTarget.Attribute("Condition")?.Value, StringComparison.Ordinal);
+        Assert.Contains("'@(SassBeforeStaticWebAssets)' != ''", helperTarget.Attribute("Condition")?.Value, StringComparison.Ordinal);
     }
 
     [Fact]
