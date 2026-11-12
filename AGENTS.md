@@ -73,6 +73,7 @@ Critical MSBuild concepts for this repo:
 - The command line travels as one base64 string (`ProcessArgumentsBase64`) and is started through `ProcessStartInfo.Arguments`, exactly as the build starts Dart Sass; do not re-split it into `ArgumentList`. Path lists are base64 per value, joined with `;`.
 - `ResolveSassWatchConfiguration` must stay unconditional. A conditional target that is skipped returns `Skipped` rather than an empty `Success`, which the CLI reports as a failure.
 - The CLI appends `--watch` (in the task) and `--poll` (in the CLI, when asked). Dart Sass's `--poll` takes no value.
+- `tests/e2e/hot-reload/verify.sh` is the end-to-end proof, against packed packages, and depends on the `watching N Sass input(s)` and `already running` messages. Reword either and update that script in the same commit.
 
 `Scarlet.Sass.Runtime.*` packages download and pack the official Dart Sass release archives into `runtimes/<rid>/native/dart-sass/`.
 

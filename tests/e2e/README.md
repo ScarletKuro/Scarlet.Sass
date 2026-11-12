@@ -23,6 +23,9 @@ tests/e2e/
 ├── cli-tool/
 │   ├── verify.sh                    # dotnet sass .NET tool E2E test
 │   └── templates/                   # Template files for the CLI tool test
+├── hot-reload/
+│   ├── verify.sh                    # dotnet sass watch with Blazor Hot Reload E2E test
+│   └── templates/                   # Template files for the hot reload test
 └── README.md                        # This file
 ```
 
@@ -42,6 +45,7 @@ The E2E tests verify that:
 10. Scarlet.Sass clean/stamp/manifest behavior removes generated files when it should.
 11. `SassRuntimeDownload=true` works with a shared runtime directory.
 12. `dotnet sass` installs from the local feed, selects its RID-specific package, uses the embedded Dart Sass runtime, and forwards Dart Sass arguments.
+13. `dotnet sass watch` reads the project's Sass configuration and keeps a Blazor Hot Reload session's CSS current with the build's settings.
 
 ## Runtime Package Selection
 
@@ -217,6 +221,33 @@ Checks 7, 9, and 13 carry the no-download claim together: the package contains D
 
 **Contract it depends on**: `--scarlet-info` must render a `Source` line containing `embedded`. If that wording changes, update this script in the same commit.
 
+### hot-reload/verify.sh
+
+**Purpose**: proves that `dotnet sass watch` keeps a Blazor Hot Reload session's CSS current using the project's own Sass configuration.
+
+**Usage**:
+
+```bash
+./tests/e2e/hot-reload/verify.sh <workspace-path> <package-version> <runtime-version>
+```
+
+**What it does**:
+
+1. Creates a Blazor Web App referencing the packed `Scarlet.Sass.MSBuild` and host runtime package, compiling `Styles/app.scss` (which `@use`s a `_tokens.scss` partial) with `OutputStyle=Compressed`.
+2. Installs the packed `Scarlet.Sass.Cli` into an isolated tool path.
+3. Starts `dotnet watch` in its default Hot Reload mode and records the app's process id.
+4. Starts `dotnet sass watch --project HotReloadApp.csproj`, with no paths or settings repeated, and waits for Dart Sass to report that it is watching.
+5. Edits only the partial.
+6. Verifies the running app serves the recompiled rule in compressed form. Dart Sass defaults to expanded output, so this proves the watcher used the build's settings and not just its paths.
+7. Verifies the Blazor process id did not change, so the CSS arrived without a restart.
+8. Starts a second `dotnet sass watch` and verifies it exits reporting the session that is already running.
+
+`DOTNET_USE_POLLING_FILE_WATCHER=1` is set for deterministic file watching on hosted runners, which also covers `dotnet sass watch` passing `--poll` to Dart Sass.
+
+**Regression it catches**: a `ResolveSassWatchConfiguration` target missing from the packed `.targets`, CLI/task watch protocol drift, a watcher that diverges from the build's settings, and partial dependencies not being followed. Without the watcher, Hot Reload never recompiles and step 6 fails.
+
+**Contract it depends on**: `dotnet sass watch` printing `Scarlet.Sass: watching 1 Sass input(s)` and `already running`, and Dart Sass printing `Sass is watching for changes`. Reword either side and update this script in the same commit.
+
 ## Running Locally
 
 Pack the packages first:
@@ -241,6 +272,7 @@ Then run one or more scripts:
 ```bash
 tests/e2e/package-installation/verify.sh "$PWD" 1.0.0-local 1.104.1
 tests/e2e/cli-tool/verify.sh "$PWD" 1.0.0-local 1.104.1
+tests/e2e/hot-reload/verify.sh "$PWD" 1.0.0-local 1.104.1
 tests/e2e/multi-tfm/verify.sh "$PWD" 1.0.0-local 1.104.1
 tests/e2e/incremental/verify.sh "$PWD" 1.0.0-local 1.104.1
 tests/e2e/monorepo-download/verify.sh "$PWD" 1.0.0-local 1.104.1
@@ -261,6 +293,7 @@ A full CI run should:
 7. Run `incremental` at least once per OS family.
 8. Run `monorepo-download` at least once per OS family.
 9. Run `cli-tool` on every matrix leg.
+10. Run `hot-reload` on every matrix leg.
 
 The scripts skip cleanup when `$CI` is set so failed runs leave their temporary projects available for inspection. Locally, temporary directories are deleted after success.
 
