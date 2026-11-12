@@ -66,6 +66,8 @@ Critical MSBuild concepts for this repo:
 
 `Scarlet.Sass.Cli` is the `dotnet sass` tool. It reserves exactly two first-position tokens, `--scarlet-info` and the bare word `watch`; everything else belongs to Dart Sass, and `SCARLET_SASS_PASSTHROUGH=1` gives up both. Do not add more: anything valid after `sass` must stay valid after `dotnet sass`.
 
+On Windows the CLI joins a kill-on-close job object (`WindowsJobObject`) so that forcibly terminating it also terminates Sass. Both launchers join it immediately before starting Sass and never earlier: `dotnet sass watch` first runs `dotnet msbuild`, and MSBuild nodes or build servers started from inside the job would be killed when the tool exits, possibly in the middle of another build. `WindowsJobObjectTests` force-kills the real tool and fails if its child survives.
+
 **`dotnet sass watch` is a contract between two separately shipped packages.** The CLI runs `dotnet msbuild -getTargetResult:ResolveSassWatchConfiguration` and reads the item metadata that `SassCompileTask` emits in `ConfigurationOnly` mode (one item per settings group). Any CLI version may meet any MSBuild package version in a consumer repository, so:
 
 - Adding metadata is compatible only if the CLI treats it as optional and falls back to the old behaviour.

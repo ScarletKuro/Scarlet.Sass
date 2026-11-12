@@ -47,6 +47,9 @@ internal sealed class ProcessLauncher : IProcessLauncher
         using var process = new Process();
         process.StartInfo = startInfo;
 
+        // On Windows, a forcibly terminated wrapper must not leave Sass running.
+        WindowsJobObject.KillChildrenOnExit();
+
         // Shared with Scarlet.Sass.MSBuild.SassCompileTask: both start a Dart Sass process file that may
         // have just been downloaded, or just been run, by a step moments earlier, and can race the same
         // ETXTBSY window.
