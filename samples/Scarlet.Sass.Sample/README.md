@@ -34,13 +34,13 @@ Expected generated files:
 
 Then `dotnet watch run --no-hot-reload` (or `dotnet watch build`) rebuilds — and so re-runs Sass — whenever a stylesheet or partial under `assets/styles` changes.
 
-With Hot Reload, the default for `dotnet watch run`, nothing is rebuilt, so the CSS would not change. Run Dart Sass's own watcher alongside instead; the app serves the new CSS without a restart:
+With Hot Reload, the default for `dotnet watch run`, nothing is rebuilt, so the CSS would not change. Run the project-aware Sass watcher alongside instead, each in its own terminal; it reads the input, output and settings from this project, and the app serves the new CSS without a restart:
 
 ```bash
 dotnet watch run
-dotnet sass --watch assets/styles:wwwroot/css
+dotnet sass watch
 ```
 
-> **Do not put `--watch` in `SassAdditionalArguments`.** Dart Sass's watch mode never exits, so the build hangs instead of finishing. Use a `Watch` item as above, or run `dotnet sass --watch` as a separate process.
+> **Do not put `--watch` in `SassAdditionalArguments`.** Dart Sass's watch mode never exits, so the build hangs instead of finishing. Use a `Watch` item as above, or run `dotnet sass watch` as a separate process.
 
 Point the glob at `assets/styles`, not `wwwroot` — watching the generated CSS would make every rebuild trigger another rebuild. See [dotnet watch Integration](../../src/Scarlet.Sass.MSBuild/README.md#dotnet-watch-integration) for the full details.

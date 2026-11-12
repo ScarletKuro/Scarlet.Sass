@@ -58,8 +58,12 @@ your tooling. `Scarlet.Sass.Cli` is a pointer package; installing it also pulls 
 `Scarlet.Sass.Cli.*` sub-package for your platform, and that one embeds Dart Sass, so it needs no network
 at run time.
 
-📖 **[Full documentation →](src/Scarlet.Sass.Cli/README.md)** — installing, argument forwarding, runtime
-resolution, diagnostics, and environment variables.
+When the project also references `Scarlet.Sass.MSBuild`, `dotnet sass watch` runs Dart Sass's watch mode
+with the project's own inputs and settings, which is what Blazor Hot Reload needs to pick up stylesheet
+changes.
+
+📖 **[Full documentation →](src/Scarlet.Sass.Cli/README.md)** — installing, project-aware watch mode,
+argument forwarding, runtime resolution, diagnostics, and environment variables.
 
 ## Available Packages
 

@@ -476,15 +476,22 @@ dotnet sass Sass:wwwroot/css --style=compressed
 
 The tool should forward arguments to Dart Sass verbatim.
 
-Reserved Scarlet flags:
+Reserved Scarlet tokens, recognised only in the first position:
 
 ```bash
 dotnet sass --scarlet-info
 dotnet sass --scarlet-info --json
+dotnet sass watch
 ```
 
-Like `Scarlet.Sass.Cli`, reserve only a branded diagnostics flag in the first position, with a permanent
-environment variable opt-out:
+`dotnet sass watch` is the project-aware watcher for Blazor Hot Reload, which does not rebuild and so never
+reruns the build's Sass compile. It evaluates `ResolveSassWatchConfiguration` in the project, receives the
+build's exact Dart Sass command line per settings group with `--watch` appended, and runs those processes in
+the foreground. Options are limited to `--project`, `--configuration` and `--poll`; MSBuild property
+overrides are rejected so the watcher cannot write the build's outputs with different settings. Exclusive
+per-output locks under the cache root stop two sessions from watching the same outputs.
+
+Reserve only these two tokens, with a permanent environment variable opt-out:
 
 ```text
 SCARLET_SASS_PASSTHROUGH=1
@@ -539,7 +546,8 @@ Potential benefits:
 - A path to exact dependency information, if exposed by the protocol interactions.
 - Custom importers written in .NET.
 - Custom Sass functions written in .NET.
-- A future watch/build-server mode that does not restart Sass for every change.
+- A build-server mode that does not restart Sass for every build. (Watching for Hot Reload is already
+  covered by `dotnet sass watch`, which keeps one Dart Sass process alive per settings group.)
 
 ### What It Does Not Buy v1
 

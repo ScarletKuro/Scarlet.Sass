@@ -64,7 +64,15 @@ Critical MSBuild concepts for this repo:
 
 `Scarlet.Sass.MSBuild` contains `SassCompileTask`, build assets, and package metadata. It targets `netstandard2.0` so MSBuild can load it broadly.
 
-`Scarlet.Sass.Cli` is the `dotnet sass` tool. It keeps `--scarlet-info` as the only reserved first-position flag; everything else belongs to Dart Sass.
+`Scarlet.Sass.Cli` is the `dotnet sass` tool. It reserves exactly two first-position tokens, `--scarlet-info` and the bare word `watch`; everything else belongs to Dart Sass, and `SCARLET_SASS_PASSTHROUGH=1` gives up both. Do not add more: anything valid after `sass` must stay valid after `dotnet sass`.
+
+**`dotnet sass watch` is a contract between two separately shipped packages.** The CLI runs `dotnet msbuild -getTargetResult:ResolveSassWatchConfiguration` and reads the item metadata that `SassCompileTask` emits in `ConfigurationOnly` mode (one item per settings group). Any CLI version may meet any MSBuild package version in a consumer repository, so:
+
+- Adding metadata is compatible only if the CLI treats it as optional and falls back to the old behaviour.
+- Renaming, removing or changing the meaning of metadata requires bumping `WatchProtocolVersion` in the task and `ProtocolVersion` in `MsBuildWatchConfigurationProvider` together. The CLI rejects versions it does not know rather than guessing.
+- The command line travels as one base64 string (`ProcessArgumentsBase64`) and is started through `ProcessStartInfo.Arguments`, exactly as the build starts Dart Sass; do not re-split it into `ArgumentList`. Path lists are base64 per value, joined with `;`.
+- `ResolveSassWatchConfiguration` must stay unconditional. A conditional target that is skipped returns `Skipped` rather than an empty `Success`, which the CLI reports as a failure.
+- The CLI appends `--watch` (in the task) and `--poll` (in the CLI, when asked). Dart Sass's `--poll` takes no value.
 
 `Scarlet.Sass.Runtime.*` packages download and pack the official Dart Sass release archives into `runtimes/<rid>/native/dart-sass/`.
 
