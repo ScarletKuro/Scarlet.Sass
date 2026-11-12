@@ -300,6 +300,104 @@ public class SassBeforeStaticWebAssetsTests
     }
 
     /// <summary>
+    /// A plain <c>Microsoft.NET.Sdk</c> project has no static web assets pipeline to hand the CSS to, so registering
+    /// it as <c>Content</c> only makes NuGet pack it under <c>content/</c> and <c>contentFiles/</c> - from where it
+    /// lands in every consuming project. Compilation must still happen.
+    /// </summary>
+    [Fact]
+    public async Task PlainSdkProject_CompilesWithoutRegisteringTheCssAsContent()
+    {
+        using var workspace = CreatePlainSdkLibrary(additionalProperties: "");
+
+        await Pack(workspace);
+
+        Assert.True(File.Exists(workspace.PathTo("wwwroot", "css", "site.css")), "Sass did not compile.");
+        Assert.Empty(PackageEntriesEndingWith(workspace, "site.css"));
+    }
+
+    /// <summary>
+    /// <c>SassDiscoverStaticWebAssets</c> overrides the SDK detection, for a project that does want the CSS as
+    /// <c>Content</c> without the static web assets SDK.
+    /// </summary>
+    [Fact]
+    public async Task PlainSdkProject_SassDiscoverStaticWebAssetsTrue_RegistersTheCssAsContent()
+    {
+        using var workspace = CreatePlainSdkLibrary(
+            additionalProperties: "<SassDiscoverStaticWebAssets>true</SassDiscoverStaticWebAssets>");
+
+        await Pack(workspace);
+
+        Assert.Contains($"content/wwwroot/{GeneratedAsset}", PackageEntriesEndingWith(workspace, "site.css"));
+    }
+
+    /// <summary>
+    /// And the other direction: a static web assets project can switch registration off, and the CSS then misses
+    /// the clean build's evaluation-time glob, so it is not a static web asset.
+    /// </summary>
+    [Fact]
+    public async Task RazorClassLibrary_SassDiscoverStaticWebAssetsFalse_DoesNotRegisterTheCss()
+    {
+        using var workspace = CreateRazorClassLibrary("<SassDiscoverStaticWebAssets>false</SassDiscoverStaticWebAssets>");
+
+        Assert.Equal(0, (await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}")).ExitCode);
+
+        Assert.True(File.Exists(workspace.PathTo("wwwroot", "css", "site.css")), "Sass did not compile.");
+        var manifest = await File.ReadAllTextAsync(
+            workspace.PathTo("obj", DotnetCli.Configuration, TargetFramework, "staticwebassets.build.json"));
+        Assert.DoesNotContain("site.css", manifest, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The .NET 6 and 7 SDKs ship static web assets inside the Razor SDK and never set
+    /// <c>UsingMicrosoftNETSdkStaticWebAssets</c>, which only appeared with the standalone static web assets SDK in
+    /// .NET 8. Detection that relied on it alone would silently drop the CSS from every clean build there.
+    /// </summary>
+    /// <remarks>
+    /// CI has no SDK older than 10, so this clears the property in the project body instead. That reproduces what
+    /// the detection sees under SDK 6/7 without changing what the SDK does: the newer SDKs only read the property in
+    /// their props, to decide which targets to import, and those are evaluated before the project body.
+    /// </remarks>
+    [Fact]
+    public async Task RazorClassLibrary_WithoutTheStaticWebAssetsSdkMarker_StillRegistersTheCss()
+    {
+        using var workspace = CreateRazorClassLibrary("<UsingMicrosoftNETSdkStaticWebAssets></UsingMicrosoftNETSdkStaticWebAssets>");
+
+        Assert.Equal(0, (await RunDotnet(workspace, $"build --configuration {DotnetCli.Configuration}")).ExitCode);
+
+        var manifest = await File.ReadAllTextAsync(
+            workspace.PathTo("obj", DotnetCli.Configuration, TargetFramework, "staticwebassets.build.json"));
+        Assert.Contains("site.css", manifest, StringComparison.Ordinal);
+    }
+
+    private TempWorkspace CreatePlainSdkLibrary(string additionalProperties)
+    {
+        var workspace = TempWorkspace.Create("plain-sdk-css");
+
+        try
+        {
+            workspace.WriteFile("Sass/site.scss", ".banner { color: red; }");
+            workspace.WriteFile("PlainLibrary.csproj", Project("Microsoft.NET.Sdk", additionalProperties));
+
+            return workspace;
+        }
+        catch
+        {
+            workspace.Dispose();
+            throw;
+        }
+    }
+
+    private static string[] PackageEntriesEndingWith(TempWorkspace workspace, string suffix)
+    {
+        using var package = ZipFile.OpenRead(Assert.Single(Directory.GetFiles(workspace.PathTo("nupkg"), "*.nupkg")));
+
+        return package.Entries
+            .Select(entry => entry.FullName)
+            .Where(name => name.EndsWith(suffix, StringComparison.Ordinal))
+            .ToArray();
+    }
+
+    /// <summary>
     /// A Razor Class Library is the strictest case: its wwwroot files have to be packed under
     /// staticwebassets/ for a consuming app to serve them.
     /// </summary>

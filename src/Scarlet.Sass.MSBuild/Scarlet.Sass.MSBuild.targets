@@ -21,6 +21,21 @@
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <!-- Whether generated files are handed back to the build as Content. Only the static web assets SDK (Razor,
+       Web, Blazor WebAssembly) turns that Content into static web assets; in any other project it is plain
+       Content, which NuGet packs under content/ and contentFiles/ and so copies into every consuming project.
+       So the default follows the SDK. Compilation runs the same either way. Set the property to override.
+       Computed in the targets rather than the props: the SDK sets these markers in its own props, which are not
+       guaranteed to be imported before this package's.
+       UsingMicrosoftNETSdkStaticWebAssets marks the standalone static web assets SDK, which only exists from
+       .NET 8. The .NET 6 and 7 SDKs build static web assets into the Razor SDK and set only
+       UsingMicrosoftNETSdkRazor - which Web and Blazor WebAssembly projects get too, because their SDKs import
+       Razor. -->
+  <PropertyGroup>
+    <SassDiscoverStaticWebAssets Condition="'$(SassDiscoverStaticWebAssets)' == '' AND ('$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' OR '$(UsingMicrosoftNETSdkRazor)' == 'true')">true</SassDiscoverStaticWebAssets>
+    <SassDiscoverStaticWebAssets Condition="'$(SassDiscoverStaticWebAssets)' == ''">false</SassDiscoverStaticWebAssets>
+  </PropertyGroup>
+
   <Target Name="_SassResolveStampDirectory">
     <PropertyGroup>
       <_SassStampDirectory Condition="'$(SassStampDirectory)' != ''">$(SassStampDirectory)</_SassStampDirectory>
@@ -67,7 +82,7 @@
       <None Remove="@(_SassRemovedFiles);@(_SassRemovedContent)" />
       <_SassGeneratedContent Include="%(_SassGeneratedFiles.RelativePath)" />
       <_SassNewContent Include="@(_SassGeneratedContent)" Exclude="@(Content)" />
-      <Content Include="@(_SassNewContent)" CopyToPublishDirectory="PreserveNewest" />
+      <Content Include="@(_SassNewContent)" CopyToPublishDirectory="PreserveNewest" Condition="'$(SassDiscoverStaticWebAssets)' == 'true'" />
       <FileWrites Include="@(_SassGeneratedFiles)" />
       <_SassContentChanges Include="@(_SassGeneratedContent)" Change="Generated" />
       <_SassContentChanges Include="@(_SassRemovedContent)" Change="Removed" />
@@ -116,7 +131,7 @@
       <Content Remove="@(_SassOuterRemovedFiles)" />
       <None Remove="@(_SassOuterRemovedFiles)" />
       <_SassOuterNewContent Include="@(_SassOuterGeneratedContent)" Exclude="@(Content)" />
-      <Content Include="%(_SassOuterNewContent.Identity)" CopyToPublishDirectory="PreserveNewest" />
+      <Content Include="%(_SassOuterNewContent.Identity)" CopyToPublishDirectory="PreserveNewest" Condition="'$(SassDiscoverStaticWebAssets)' == 'true'" />
     </ItemGroup>
   </Target>
 
