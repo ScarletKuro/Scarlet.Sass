@@ -124,7 +124,7 @@ The scripts escape Windows backslashes before running `sed`, so paths like `D:\a
 **What it does**:
 
 1. Creates a Razor Class Library.
-2. Replaces the project file with a multi-targeted template.
+2. Replaces the project file with a template targeting `net8.0;net9.0;net10.0;net11.0`.
 3. Copies checked-in Sass fixtures into `Sass/`.
 4. Builds with normal verbosity and captures `build.log`.
 5. Verifies `wwwroot/css/site.css` exists.
@@ -132,7 +132,7 @@ The scripts escape Windows backslashes before running `sed`, so paths like `D:\a
 7. Packs with `--no-build --configuration Debug`.
 8. Opens the `.nupkg` and verifies generated CSS appears under `staticwebassets/css/site.css`.
 9. Deletes the CSS and rebuilds with `--no-incremental`, requiring one invocation, the CSS in every TFM's static web assets manifest, and one non-empty `staticwebassets/css/site.css` from a following `pack --no-build`.
-10. Adds a `net10.0` web app with a `ProjectReference` to the library, deletes the CSS and builds **only the app** - what `dotnet run` does, which never runs the library's outer build. Requires one invocation, the CSS in the app's manifest, and the running app serving the generated file at `/_content/TestRclMultiTfm/css/site.css`.
+10. Adds a `net11.0` web app with a `ProjectReference` to the library, deletes the CSS and builds **only the app** - what `dotnet run` does, which never runs the library's outer build. Requires one invocation, the CSS in the app's manifest, and the running app serving the generated file at `/_content/TestRclMultiTfm/css/site.css`.
 11. Runs `dotnet clean` and verifies the outer-build CSS is removed.
 
 **Regression it catches**: if `RunSassBeforeStaticWebAssets` stops running in the outer build, runs once per TFM, stops feeding static web assets, or hooks clean only in inner builds, this test should fail. So should inner builds that stop asking the outer build to compile: a rebuild then packs no CSS, and an app built on its own 404s on it.

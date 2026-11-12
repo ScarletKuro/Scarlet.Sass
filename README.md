@@ -19,6 +19,9 @@ or run the official Dart Sass CLI with `dotnet sass`, on Windows, Linux and macO
 
 They are independent — use either, or both.
 
+Building this repository and running its samples and tests requires the .NET 11 SDK.
+The CLI package targets .NET 10; install that runtime too when testing the packaged tool.
+
 ### Scarlet.Sass.MSBuild — Sass during `dotnet build`
 
 ```bash
