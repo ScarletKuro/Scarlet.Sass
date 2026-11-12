@@ -377,11 +377,22 @@ Include partials. Editing `_variables.scss` changes the CSS of every stylesheet 
 
 `Watch` knows nothing about Sass; it is only a trip-wire telling `dotnet watch` to treat a change to these files like a change to a `.cs` file. When it fires, `dotnet watch` runs an ordinary build, and your `SassBeforeStaticWebAssets` items already compile on every build — so the `Watch` item never invokes Dart Sass itself, it just makes the build that was always going to invoke it happen more often.
 
-Run `dotnet watch build`, or `dotnet watch run` for a Blazor or ASP.NET Core app, which also refreshes the browser for the regenerated static assets.
+That only works when `dotnet watch` builds: `dotnet watch build`, or `dotnet watch run --no-hot-reload`, which costs a full MSBuild build per save.
 
-> **Do not put `--watch` in `SassAdditionalArguments`.** Dart Sass's watch mode never exits, so the build would hang rather than finish. With the default `SassTimeoutMilliseconds` of `0` it waits indefinitely; with a timeout set, the build fails instead. If per-save latency becomes the bottleneck, run `dotnet sass --watch` as a separate long-lived process and manage its lifecycle yourself.
+### With Hot Reload
 
-This rides entirely on `dotnet watch`'s existing file watching — no code in this package — so it costs a full MSBuild build per save rather than an instant incremental rebuild.
+`dotnet watch run` uses Hot Reload by default, and Hot Reload applies changes **without building**. It notices the `.scss` change but runs no build, so no compile: the CSS stays as it was until you restart. For this loop, run Dart Sass's own watcher next to it, with the same input and output as your `SassBeforeStaticWebAssets` item:
+
+```bash
+dotnet watch run
+dotnet sass --watch assets/styles:wwwroot/css
+```
+
+Dart Sass recompiles on every save, partials included, and the running app serves the new CSS as a changed static asset — no rebuild, no restart. Give the watcher the same settings the build uses (output style, source maps, load paths): both write the same files, so different settings would make them overwrite each other with different CSS.
+
+> **Do not put `--watch` in `SassAdditionalArguments`.** Dart Sass's watch mode never exits, so the build would hang rather than finish. With the default `SassTimeoutMilliseconds` of `0` it waits indefinitely; with a timeout set, the build fails instead. Run the watcher as its own process, as above.
+
+None of this is code in this package: the build side rides on `dotnet watch`'s file watching, and the Hot Reload side on Dart Sass's.
 
 ## Embedded Sass Protocol
 
